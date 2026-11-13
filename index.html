@@ -1273,7 +1273,7 @@
         const WORLD_LEAGUES = [
             // --- AMÉRICA LATINA (5 LIGAS) ---
             {
-                id: 'bra', name: 'Brasileirão Série A', country: 'Brasil', flag: '🇧🇷', region: 'SA', pool: 'pt',
+                id: 'bra', name: 'Brasileirão Série A', country: 'Brasil', flag: '🇧🇷', region: 'SA', pool: 'br',
                 clubs: [
                     { name: 'Flamengo', short: 'FLA', c1: '#dc2626', c2: '#09090b', sh: '#ffffff', pat: 'hoops', ovr: 85, cash: 25000000, cap: 65000 },
                     { name: 'Palmeiras', short: 'PAL', c1: '#15803d', c2: '#ffffff', sh: '#ffffff', pat: 'solid', ovr: 85, cash: 24000000, cap: 44000 },
@@ -1528,9 +1528,13 @@
         ];
 
         const NAME_POOLS = {
+            br: {
+                first: ['Gabriel', 'Pedro', 'Lucas', 'Matheus', 'Rafael', 'Bruno', 'Gustavo', 'Felipe', 'Rodrigo', 'Thiago', 'Diego', 'Carlos', 'André', 'Vitor', 'Igor', 'Caio', 'Luan', 'Arthur', 'Gerson', 'Danilo', 'Renato', 'Fábio', 'João', 'Vinícius', 'Elias', 'Marcos', 'Wesley', 'Júnior', 'Leandro', 'Eduardo'],
+                last: ['Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Costa', 'Rodrigues', 'Almeida', 'Lima', 'Araújo', 'Fernandes', 'Carvalho', 'Gomes', 'Martins', 'Rocha', 'Ribeiro', 'Alves', 'Barbosa', 'Nascimento', 'Moura', 'Mendes', 'Cavalcanti', 'Moreira', 'Cardoso', 'Teixeira']
+            },
             pt: {
-                first: ['Gabriel', 'Pedro', 'Lucas', 'Matheus', 'Rafael', 'Bruno', 'Gustavo', 'Felipe', 'Rodrigo', 'Thiago', 'Diego', 'Carlos', 'André', 'Vitor', 'Igor', 'Caio', 'Luan', 'Arthur', 'Gerson', 'Danilo', 'Renato', 'Fábio', 'João', 'Diogo', 'Gonçalo', 'Nuno', 'Rúben', 'Bernardo', 'Endrick', 'Estêvão'],
-                last: ['Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Costa', 'Rodrigues', 'Almeida', 'Lima', 'Araújo', 'Fernandes', 'Carvalho', 'Gomes', 'Martins', 'Rocha', 'Ribeiro', 'Alves', 'Monteiro', 'Barbosa', 'Veiga', 'Neto', 'Henrique', 'Moura', 'Neves', 'Dias', 'Mendes']
+                first: ['Diogo', 'Gonçalo', 'Nuno', 'Rúben', 'Bernardo', 'João', 'André', 'Rafael', 'Bruno', 'Tiago', 'Francisco', 'Martim', 'Afonso', 'Tomás', 'Duarte', 'Ricardo', 'Hugo', 'Fábio', 'Pedro', 'Guilherme', 'Vasco', 'Leandro', 'Simão', 'Miguel', 'David', 'Luís', 'António', 'Félix', 'Rui', 'Mário'],
+                last: ['Silva', 'Santos', 'Oliveira', 'Pereira', 'Costa', 'Rodrigues', 'Almeida', 'Fernandes', 'Carvalho', 'Gomes', 'Martins', 'Rocha', 'Ribeiro', 'Monteiro', 'Veiga', 'Neto', 'Moura', 'Neves', 'Dias', 'Mendes', 'Pinto', 'Sousa', 'Teixeira', 'Coelho', 'Moreira']
             },
             es: {
                 first: ['Mateo', 'Santiago', 'Sebastián', 'Alejandro', 'Nicolás', 'Diego', 'Julián', 'Lautaro', 'Enzo', 'Facundo', 'Franco', 'Nahuel', 'Rodrigo', 'Álvaro', 'Pablo', 'Carlos', 'Luis', 'Javier', 'Iñaki', 'Mikel', 'Unai', 'Gavi', 'Pedri', 'Ferran', 'Dani', 'Sergio', 'Lamine'],
@@ -2095,7 +2099,7 @@
             txt.textContent = `${conf}%`;
 
             // Próxima Partida
-            const isCupRound = state.round % 4 === 0 && isUserAliveInCup();
+            const isCupRound = isCupMatchday() && isUserAliveInCup();
             if (isCupRound) {
                 const cupMatch = getCurrentUserCupMatch();
                 const isHome = cupMatch.homeId === club.id;
@@ -2580,6 +2584,11 @@
         }
 
         // --- ABA 5: COPA CONTINENTAL ---
+        function isCupMatchday() {
+            // Distribui as quatro fases dentro da temporada nacional de 15 rodadas.
+            return [4, 8, 12, 15].includes(state.round);
+        }
+
         function isUserAliveInCup() {
             if (!state.cup) return false;
             const last = state.cup.rounds[state.cup.rounds.length - 1];
@@ -2697,11 +2706,36 @@
 
         function renderTrophiesAndNewsTab() {
             const st = state.careerStats;
+            const total = Math.max(0, Number(st.matches) || 0);
+            const wins = Math.max(0, Number(st.wins) || 0);
+            const draws = Math.max(0, Number(st.draws) || 0);
+            const losses = Math.max(0, Number(st.losses) || 0);
+            const resultTotal = wins + draws + losses;
+            const winPct = resultTotal ? wins / resultTotal * 100 : 0;
+            const drawPct = resultTotal ? draws / resultTotal * 100 : 0;
+            const lossPct = resultTotal ? losses / resultTotal * 100 : 0;
+            const goalDiff = (Number(st.goalsFor) || 0) - (Number(st.goalsAgainst) || 0);
             document.getElementById('career-stats-box').innerHTML = `
                 <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center;">
                     <div><span style="font-size:10px; color:#94a3b8; display:block;">JOGOS</span><strong style="font-size:16px;">${st.matches}</strong></div>
                     <div><span style="font-size:10px; color:#94a3b8; display:block;">VITÓRIAS</span><strong style="font-size:16px; color:#34d399;">${st.wins}</strong></div>
                     <div><span style="font-size:10px; color:#94a3b8; display:block;">TÍTULOS</span><strong style="font-size:16px; color:var(--accent-gold);">${state.trophies.length}</strong></div>
+                </div>
+                <div class="retro-subpanel" style="margin-top:12px; padding:10px 11px;">
+                    <div class="flex items-center justify-between gap-2" style="margin-bottom:8px;">
+                        <strong style="font-size:10px; color:#cbd5e1; letter-spacing:.08em;">DESEMPENHO NA CARREIRA</strong>
+                        <span class="font-mono" style="font-size:10px; color:${goalDiff >= 0 ? '#34d399' : '#f87171'};">SG ${goalDiff > 0 ? '+' : ''}${goalDiff}</span>
+                    </div>
+                    <div role="img" aria-label="Resultados da carreira: ${wins} vitórias, ${draws} empates e ${losses} derrotas em ${total} jogos" style="display:flex; height:12px; overflow:hidden; border-radius:99px; background:#1e293b; box-shadow:inset 0 1px 3px rgba(0,0,0,.45);">
+                        <span style="width:${winPct}%; background:linear-gradient(90deg,#059669,#34d399); transition:width .35s ease;"></span>
+                        <span style="width:${drawPct}%; background:linear-gradient(90deg,#d97706,#fbbf24); transition:width .35s ease;"></span>
+                        <span style="width:${lossPct}%; background:linear-gradient(90deg,#dc2626,#f87171); transition:width .35s ease;"></span>
+                    </div>
+                    <div class="flex flex-wrap justify-between gap-2" style="margin-top:8px; font-size:10px; color:#94a3b8;">
+                        <span><i style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#34d399; margin-right:4px;"></i>Vitórias <b style="color:#e2e8f0;">${wins}</b></span>
+                        <span><i style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#fbbf24; margin-right:4px;"></i>Empates <b style="color:#e2e8f0;">${draws}</b></span>
+                        <span><i style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#f87171; margin-right:4px;"></i>Derrotas <b style="color:#e2e8f0;">${losses}</b></span>
+                    </div>
                 </div>
             `;
 
@@ -2791,7 +2825,7 @@
 
             const userClub = getUserClub();
             const userLeague = getUserLeague();
-            const isCup = state.round % 4 === 0 && isUserAliveInCup();
+            const isCup = isCupMatchday() && isUserAliveInCup();
 
             let matchObj, homeClub, awayClub, otherLeagueMatches = [];
 
@@ -3748,8 +3782,19 @@
             document.getElementById('sub-modal-left').textContent = sim.subsLeft;
 
             const club = getUserClub();
-            const onPitch = club.squad.filter(p => p.starter);
+            // Um expulso ainda pode estar marcado como titular no elenco,
+            // mas não pode ser substituído depois de deixar o campo.
+            const onPitchIds = new Set(sim.players
+                .filter(pl => pl.club.id === club.id && !pl.sentOff)
+                .map(pl => pl.data.id));
+            const onPitch = club.squad.filter(p => p.starter && onPitchIds.has(p.id));
             const bench = club.squad.filter(p => !p.starter && isPlayerFit(p));
+
+            if (onPitch.length === 0 || bench.length === 0) {
+                closeSubModal();
+                showToast(bench.length === 0 ? 'Não há reservas aptos para entrar.' : 'Não há jogadores disponíveis para substituir.', 'warning');
+                return;
+            }
 
             document.getElementById('sub-out-container').innerHTML = onPitch.map(p => `
                 <div onclick="pickSubOut(${p.id}, this)" class="sub-out-opt retro-subpanel flex justify-between" style="padding:7px 9px; cursor:pointer; font-size:12px;">
@@ -3787,7 +3832,14 @@
             const club = getUserClub();
             const pOut = club.squad.find(x => x.id === selOutId);
             const pIn = club.squad.find(x => x.id === selInId);
-            if (!pOut || !pIn) return;
+            const outEntity = sim && sim.players.find(pl => pl.club.id === club.id && pl.data.id === selOutId);
+            if (!pOut || !pOut.starter || !outEntity || outEntity.sentOff ||
+                !pIn || pIn.starter || !isPlayerFit(pIn)) {
+                showToast('A escalação mudou. Selecione novamente os jogadores da troca.', 'warning');
+                selOutId = null;
+                selInId = null;
+                return;
+            }
 
             if (pOut.pos === 'GOL' && pIn.pos !== 'GOL') {
                 showToast('Um goleiro só pode ser substituído por outro goleiro!', 'error');
@@ -3799,8 +3851,7 @@
             sim.subsLeft--;
             document.getElementById('live-subs-left').textContent = sim.subsLeft;
 
-            const ent = sim.players.find(pl => pl.data.id === pOut.id);
-            if (ent) ent.data = pIn;
+            outEntity.data = pIn;
 
             AudioFX.whistle(false);
             logMatchEvent(Math.floor(sim.minute), `🔄 Substituição (${club.short}): Sai ${pOut.name}, entra ${pIn.name}.`, '#60a5fa');
