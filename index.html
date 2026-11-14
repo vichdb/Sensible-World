@@ -474,8 +474,8 @@
             <button onclick="renderStandings('scorers')">⚽ Artilharia</button>
           </div>
         </h3>
-        <div id="season-calendar" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:8px; margin-bottom:14px;"></div>
         <div id="season-summary" class="sw-season-summary" aria-live="polite"></div>
+        <div id="season-calendar" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:8px; margin-bottom:14px;"></div>
         <div id="comp-container" style="max-height:72vh; overflow:auto;"></div>
       </div>
     </div>
@@ -1543,9 +1543,12 @@ function refreshUI() {
   document.getElementById('nat-friendly-box').style.display = isNat ? 'block' : 'none';
 
   const next = getNextOpponent();
-  document.getElementById('ui-next-opp').textContent = next?.team
-    ? `${next.team.name} (${next.label})`
-    : `Sem jogo • ${next?.label || 'Treino / recuperação'}`;
+  const nextOpponentLabel = document.getElementById('ui-next-opp');
+  if (nextOpponentLabel) {
+    nextOpponentLabel.textContent = next?.team && Array.isArray(next.team.squad)
+      ? `${next.team.name} (${next.label || 'Partida'})`
+      : `Sem jogo • ${next?.label || 'Treino / recuperação'}`;
+  }
   const playMatchButton = document.querySelector('button[onclick="prepareMatch()"]');
   if (playMatchButton) {
     const canPlay = !!next?.team && Array.isArray(next.team.squad);
@@ -2275,8 +2278,9 @@ function buildSeasonSummary() {
 function renderSeasonSummary() {
   const container = document.getElementById('season-summary');
   if (!container) return;
-  const summary = state?.lastSeasonSummary;
+  const summary = state?.lastSeasonSummary || state?.seasonHistory?.[0] || null;
   if (!summary) { container.innerHTML = ''; return; }
+  if (!state.lastSeasonSummary) state.lastSeasonSummary = summary;
 
   const userLeagueId = state?.clubs?.[state.userClubId]?.leagueId;
   const leagueBlocks = (summary.leagues || []).map(league => {
