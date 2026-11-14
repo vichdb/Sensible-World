@@ -174,7 +174,11 @@
   .sw-report-summary > * { min-width:0; padding:11px 13px; background:rgba(27,38,53,.8); border:1px solid var(--border); border-radius:9px; line-height:1.5; }
   .sw-report-summary strong { color:#fff; }
   .sw-report-result { grid-column:1 / -1; color:var(--gold); font-size:1.05rem; font-weight:800; text-align:center; }
-  .sw-report-team-stats, .sw-report-player-ratings { min-width:0; margin-top:12px; padding:12px; background:rgba(10,15,22,.48); border:1px solid var(--border); border-radius:10px; }
+  .sw-report-team-stats, .sw-report-player-ratings, .sw-report-context { min-width:0; margin-top:12px; padding:12px; background:rgba(10,15,22,.48); border:1px solid var(--border); border-radius:10px; }
+  .sw-report-context-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:8px; }
+  .sw-report-context-team { padding:10px; border:1px solid rgba(149,165,166,.22); border-radius:8px; color:#dce5e9; font-size:.82rem; line-height:1.5; }
+  .sw-report-context-team strong { color:#fff; }
+  .sw-report-context-reading { margin:10px 0 0; color:var(--muted); font-size:.84rem; line-height:1.55; }
   .sw-report-panel h4 { margin:0 0 8px; color:#b8e8ca; font-size:.92rem; }
   .sw-report-team-stats table, .sw-report-player-ratings table { min-width:520px; }
   .sw-report-team-stats, .sw-report-player-ratings { overflow-x:auto; }
@@ -587,9 +591,9 @@
             <div>
               <label>Patrocinador Master:</label><br>
               <select id="sel-sponsor" style="width:100%;" onchange="updateSponsor(this.value)">
-                <option value="safe">Banco Clássico (R$ 300 mil fixos/semana)</option>
-                <option value="win">AeroTurbo (R$ 180 mil fixos/semana)</option>
-                <option value="risk">MegaBet (R$ 100 mil fixos/semana)</option>
+                <option value="safe">Banco Clássico (R$ 120 mil fixos/semana)</option>
+                <option value="win">AeroTurbo (R$ 90 mil fixos/semana)</option>
+                <option value="risk">MegaBet (R$ 60 mil fixos/semana)</option>
               </select>
             </div>
             <div>
@@ -705,6 +709,7 @@
     <h3 class="sw-report-title">Relatório pós-jogo</h3>
     <div id="post-match-summary" class="sw-report-summary"></div>
     <div id="post-match-team-stats" class="sw-report-team-stats"></div>
+    <div id="post-match-context" class="sw-report-context"></div>
     <div id="post-match-player-ratings" class="sw-report-player-ratings"></div>
   </section>
 
@@ -1541,6 +1546,12 @@ function refreshUI() {
   document.getElementById('ui-next-opp').textContent = next?.team
     ? `${next.team.name} (${next.label})`
     : `Sem jogo • ${next?.label || 'Treino / recuperação'}`;
+  const playMatchButton = document.querySelector('button[onclick="prepareMatch()"]');
+  if (playMatchButton) {
+    const canPlay = !!next?.team && Array.isArray(next.team.squad);
+    playMatchButton.disabled = !canPlay;
+    playMatchButton.title = canPlay ? 'Jogar a partida desta semana' : 'Sem partida marcada nesta semana; avance o calendário.';
+  }
 
   renderSquad();
   renderTacticsPitch();
@@ -1920,8 +1931,23 @@ function getNextOpponent() {
     return { type: 'rest', team: { name: 'Seleção • Treino ou descanso' }, label: info.label };
   }
 
-  if (info.phase === 'PRE' || info.phase === 'FIFA' || info.phase === 'OFF') {
-    return { type: 'friendly', team: { name: info.phase === 'PRE' ? 'Amistoso de preparação' : 'Folga no calendário' }, label: info.phase === 'PRE' ? 'Pré-temporada' : info.label };
+  if (info.phase === 'PRE') {
+    const club = state.clubs[teamId];
+    const candidates = Object.values(state.clubs).filter(item => item.id !== teamId && Array.isArray(item.squad) && item.squad.length >= 11);
+    const sameLeague = candidates.filter(item => item.leagueId === club?.leagueId);
+    const opponents = sameLeague.length ? sameLeague : candidates;
+    if (club && opponents.length) {
+      const index = ((Number(state.season) - 1) * 4 + Number(week)) % opponents.length;
+      return {
+        type: 'friendly', team: opponents[index], userTeam: club,
+        isHome: (Number(state.season) + Number(week)) % 2 === 0,
+        label: `Amistoso de preparação • Semana ${week}`
+      };
+    }
+    return { type: 'rest', team: null, label: 'Pré-temporada • Agende um amistoso' };
+  }
+  if (info.phase === 'FIFA' || info.phase === 'OFF') {
+    return { type: 'rest', team: null, label: info.label };
   }
 
   if (info.phase === 'LEAGUE' && info.leagueRound) {
@@ -2020,7 +2046,7 @@ function renderStandings(mode = null) {
   }
 
   if (mode === 'tournaments') {
-    let html = `<h4>Ranking FIFA de Seleções & Torneio Olímpico (U23)</h4><br>`;
+    let html = `<h4>Ranking FIFA de Seleções & Torneio Olímpico (U23)</h4><p style="color:var(--muted);font-size:.78rem;">Os pontos do ranking são acumulados; jogos, vitórias, empates, derrotas e saldo mostram a temporada atual.</p><br>`;
     const sortedNats = Object.values(state.nationals).sort((a,b) => (b.rankingPoints - a.rankingPoints) || (b.pts-a.pts) || a.name.localeCompare(b.name));
     html += `<table><thead><tr><th>#</th><th>Seleção</th><th>Região</th><th>Pts</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr></thead><tbody>`;
     sortedNats.forEach((n, idx) => {
@@ -2333,11 +2359,12 @@ function simulateWorldWeek() {
         const leaguePair = weekInfo.phase === 'LEAGUE' ? league?.schedule[weekInfo.leagueRound - 1]?.find(pair => pair.includes(c.id)) : null;
         const cupFixture = getTournamentOpponent(w, c.id, 'club');
         const hasHomeMatch = leaguePair ? leaguePair[0] === c.id : !!cupFixture?.isHome;
-        const ticketRevenue = hasHomeMatch ? state.ticketPrice * 18000 : 0;
-        const tvRevenue = 1500000;
-        const sponsorRevenue = state.sponsor === 'safe' ? 300000
-          : state.sponsor === 'win' ? 180000
-          : 100000;
+        const attendance = Math.round(clampNumber(14000 - (state.ticketPrice - 40) * 65, 5000, 18000));
+        const ticketRevenue = hasHomeMatch ? state.ticketPrice * attendance : 0;
+        const tvRevenue = 400000;
+        const sponsorRevenue = state.sponsor === 'safe' ? 120000
+          : state.sponsor === 'win' ? 90000
+          : 60000;
         const expenses = totalSal;
         state.cash -= totalSal;
         state.cash += ticketRevenue + tvRevenue + sponsorRevenue;
@@ -2632,7 +2659,20 @@ function olympicNationalTeam(world, nationalId, index) {
     player.competitionOnly = true;
     world.players.push(player); eligible.push(player);
   }
+  // U23 squads can otherwise be generated without a goalkeeper, especially
+  // for nations whose eligible players are all selected by the senior side.
+  if (!eligible.some(player => player.pos === 'GOL')) {
+    const nextId = world.players.reduce((max,p) => Math.max(max, Number(p.id) || 0), 0) + 1;
+    const goalkeeper = generatePlayer(nextId, 'GOL', 76, senior.country, null, rand(18, 23));
+    goalkeeper.competitionOnly = true;
+    world.players.push(goalkeeper);
+    eligible.push(goalkeeper);
+  }
   const team = { ...senior, id: nationalId, name: `${senior.name} U23`, squad: eligible.slice(0, 23).map(p => p.id), shape: index % 3, formation: '4-3-3', stats: { pts:0, mp:0, w:0, d:0, l:0, gf:0, ga:0 } };
+  if (!team.squad.some(id => world.players.find(player => player.id === id)?.pos === 'GOL')) {
+    const goalkeeper = eligible.find(player => player.pos === 'GOL');
+    if (goalkeeper) team.squad[team.squad.length - 1] = goalkeeper.id;
+  }
   autoSelectStarters(team, world.players, true);
   return team;
 }
@@ -3346,6 +3386,7 @@ function startLiveMatch(homeTeam, awayTeam, label, context = {}) {
   document.getElementById('post-match-report').classList.add('hidden');
   document.getElementById('post-match-summary').replaceChildren();
   document.getElementById('post-match-team-stats').replaceChildren();
+  document.getElementById('post-match-context').replaceChildren();
   document.getElementById('post-match-player-ratings').replaceChildren();
   document.getElementById('match-style-live').value = userTeam.style || 'balanced';
   document.getElementById('match-formation-live').value = userTeam.formation || '4-4-2';
@@ -3493,13 +3534,18 @@ function simulateMatchHighlights() {
     const count = regulationGoals[side];
     for (let i=0; i<count; i++) {
       const scorer = matchPick(attackNames(side));
-      events.push({ minute:minute(5,88), type:'goal', side, scorerId:scorer?.id, shotAttempt:true, clearChance:true, message:`GOOOL ${team.name.toUpperCase()}! ${scorer?.name || 'O atacante'} ${matchPick(goalLines)}` });
+      const decisiveError = matchRandom() < 0.12
+        ? matchPick(ratedLineup(defendingTeam).filter(player => player.pos === 'DEF' || player.pos === 'GOL'))
+        : null;
+      const goalText = `GOOOL ${team.name.toUpperCase()}! ${scorer?.name || 'O atacante'} ${matchPick(goalLines)}`;
+      events.push({ minute:minute(5,88), type:'goal', side, scorerId:scorer?.id, shotAttempt:true, clearChance:true,
+        decisiveErrorId:decisiveError?.id, errorSide:decisiveError ? (side === 'home' ? 'away' : 'home') : null,
+        message:decisiveError ? `${decisiveError.name} falha na saída; ${goalText}` : goalText });
     }
     const chances = matchRand(3,5);
     for (let i=0; i<chances; i++) {
       const attacker = matchPick(attackNames(side));
       const kind = matchPick(['save','wide','pressure','chance']);
-      const decisiveError = matchRandom() < 0.12 ? matchPick(ratedLineup(defendingTeam).filter(player => player.pos === 'DEF' || player.pos === 'GOL')) : null;
       const keeper = ratedLineup(defendingTeam).find(player => player.pos === 'GOL');
       const message = kind === 'save' ? matchPick([
           `Defesaça! ${attacker?.name || 'O atacante'} bate forte, mas ${keeper?.name || `o goleiro de ${defendingTeam.name}`} salva!`,
@@ -3518,9 +3564,8 @@ function simulateMatchHighlights() {
           `${attacker?.name || 'O atacante'} tabela na entrada da área e ameaça a defesa.`
         ]);
       events.push({ minute:minute(3,87), type:kind, side, playerId:attacker?.id, keeperId:kind === 'save' ? keeper?.id : null,
-        shotAttempt:['save','wide'].includes(kind), clearChance:kind === 'chance' || kind === 'save' && matchRandom() < 0.35,
-        decisiveErrorId:decisiveError?.id, errorSide:decisiveError ? (side === 'home' ? 'away' : 'home') : null,
-        message:decisiveError ? `${decisiveError.name} falha na saída; ${message}` : message });
+        shotAttempt:['chance','save','wide'].includes(kind), clearChance:kind === 'chance' || kind === 'save' && matchRandom() < 0.35,
+        message });
     }
   }
   events.push({ minute:45, type:'halftime', message:'' });
@@ -3670,15 +3715,19 @@ function rebuildFutureMatchEvents() {
     const attackers = ratedLineup(team).filter(p => p.pos === 'ATA' || p.pos === 'MEI');
     for (let i = 0; i < goalCount; i++) {
       const scorer = matchPick(attackers.length ? attackers : ratedLineup(team));
+      const decisiveError = matchRandom() < 0.12
+        ? matchPick(ratedLineup(opp).filter(player => player.pos === 'DEF' || player.pos === 'GOL'))
+        : null;
+      const goalText = `GOOOL ${team.name.toUpperCase()}! ${scorer?.name || 'O atacante'} ${matchPick(['finaliza no canto e marca!', 'aparece livre na área e manda para as redes!', 'bate de primeira e faz o estádio vibrar!'])}`;
       futureEvents.push({ minute: matchRand(Math.min(89, start + 1), 89), type: 'goal', side,
         scorerId: scorer?.id, shotAttempt: true, clearChance: true,
-        message: `GOOOL ${team.name.toUpperCase()}! ${scorer?.name || 'O atacante'} ${matchPick(['finaliza no canto e marca!', 'aparece livre na área e manda para as redes!', 'bate de primeira e faz o estádio vibrar!'])}` });
+        decisiveErrorId: decisiveError?.id, errorSide: decisiveError ? (side === 'home' ? 'away' : 'home') : null,
+        message: decisiveError ? `${decisiveError.name} falha na saída; ${goalText}` : goalText });
       score[side]++;
     }
     for (let i = 0, count = matchRand(2,4); i < count && start < 90; i++) {
       const attacker = matchPick(attackers.length ? attackers : ratedLineup(team));
       const kind = matchPick(['save','wide','chance','pressure']);
-      const defender = matchRandom() < 0.15 ? matchPick(ratedLineup(opp).filter(p => p.pos === 'DEF' || p.pos === 'GOL')) : null;
       const messages = {
         save: `${attacker?.name || 'O atacante'} bate colocado, e o goleiro de ${opp.name} espalma.`,
         wide: `${attacker?.name || 'O atacante'} arrisca e a bola passa rente à trave.`,
@@ -3687,9 +3736,8 @@ function rebuildFutureMatchEvents() {
       };
       const keeper = ratedLineup(opp).find(p => p.pos === 'GOL');
       futureEvents.push({ minute: matchRand(Math.min(89, start + 1), 89), type: kind, side, keeperId: kind === 'save' ? keeper?.id : null,
-        playerId: attacker?.id, shotAttempt: kind === 'save' || kind === 'wide', clearChance: kind === 'chance',
-        decisiveErrorId: defender?.id, errorSide: defender ? (side === 'home' ? 'away' : 'home') : null,
-        message: defender ? `${defender.name} erra na saída; ${messages[kind]}` : messages[kind] });
+        playerId: attacker?.id, shotAttempt: ['chance','save','wide'].includes(kind), clearChance: kind === 'chance',
+        message: messages[kind] });
     }
   }
   futureEvents.push({ minute: 90, type: 'fulltime', message: '' });
@@ -4058,7 +4106,7 @@ function buildPostMatchReport() {
     ['Finalizações', homeStats.shots, awayStats.shots],
     ['Chances claras', homeStats.clearChances, awayStats.clearChances],
     ['Posse estimada', `${homePossession}%`, `${100-homePossession}%`],
-    ['Erros decisivos', homeStats.errors, awayStats.errors]
+    ['Falhas que causaram gol', homeStats.errors, awayStats.errors]
   ];
   const summary=document.getElementById('post-match-summary');
   summary.replaceChildren();
@@ -4073,6 +4121,50 @@ function buildPostMatchReport() {
   table.appendChild(header);
   stats.forEach(([label,homeValue,awayValue])=>{const row=document.createElement('tr');[homeValue,label,awayValue].forEach(value=>{const cell=document.createElement('td');cell.textContent=String(value);row.appendChild(cell);});table.appendChild(row);});
   statsBox.appendChild(table);
+
+  const contextBox=document.getElementById('post-match-context');
+  contextBox.replaceChildren();
+  const contextTitle=document.createElement('h4');
+  contextTitle.textContent='Leitura do jogo';
+  contextBox.appendChild(contextTitle);
+  const contextGrid=document.createElement('div'); contextGrid.className='sw-report-context-grid';
+  const profiles={};
+  const styleNames={balanced:'Equilibrado',allout:'Ataque total',possession:'Posse de bola',counter:'Contra-ataque',defensive:'Defensivo'};
+  for (const [side,team] of [['home',match.home],['away',match.away]]) {
+    const lineup=ratedLineup(team);
+    const averageStrength=lineup.length?lineup.reduce((sum,player)=>sum+(Number(player.ovr)||0),0)/lineup.length:0;
+    const averageEnergy=lineup.length?lineup.reduce((sum,player)=>sum+(Number(player.energy)||0),0)/lineup.length:0;
+    const ratings=teamMatchRatings(team);
+    profiles[side]={team,averageStrength,averageEnergy,ratings};
+    const card=document.createElement('div'); card.className='sw-report-context-team';
+    const title=document.createElement('strong'); title.textContent=team.name; card.appendChild(title);
+    const detail=document.createElement('div');
+    detail.textContent=`Força média ${averageStrength.toFixed(0)} · Condição ${averageEnergy.toFixed(0)}% · ${team.formation||'4-4-2'} / ${styleNames[team.style]||'Equilibrado'} · Ataque ${ratings.attack.toFixed(0)}, meio ${ratings.midfield.toFixed(0)}, defesa ${ratings.defense.toFixed(0)}.`;
+    card.appendChild(detail); contextGrid.appendChild(card);
+  }
+  contextBox.appendChild(contextGrid);
+  const reading=document.createElement('p'); reading.className='sw-report-context-reading';
+  const winnerSide=match.goalsHome===match.goalsAway?null:(match.goalsHome>match.goalsAway?'home':'away');
+  const userSide=match.home.id===match.userTeam?.id?'home':'away';
+  const opponentSide=userSide==='home'?'away':'home', opponentProfile=profiles[opponentSide];
+  const winnerProfile=winnerSide?profiles[winnerSide]:null;
+  const favoriteSide=profiles.home.averageStrength===profiles.away.averageStrength?null:
+    (profiles.home.averageStrength>profiles.away.averageStrength?'home':'away');
+  let outcomeText='O placar terminou empatado.';
+  if (winnerProfile && favoriteSide && winnerSide!==favoriteSide && Math.abs(profiles.home.averageStrength-profiles.away.averageStrength)>=4)
+    outcomeText=`Surpresa: ${winnerProfile.team.name} venceu apesar de começar com força média menor.`;
+  else if (winnerProfile && favoriteSide===winnerSide)
+    outcomeText=`${winnerProfile.team.name} confirmou a vantagem de força média do elenco.`;
+  const userStats=userSide==='home'?homeStats:awayStats;
+  const opponentStats=opponentSide==='home'?homeStats:awayStats;
+  let chanceText='';
+  if (userStats.clearChances>opponentStats.clearChances)
+    chanceText=` ${match.userTeam.name} criou mais chances claras (${userStats.clearChances} a ${opponentStats.clearChances}).`;
+  else if (userStats.clearChances<opponentStats.clearChances)
+    chanceText=` ${opponentProfile.team.name} criou mais chances claras (${opponentStats.clearChances} a ${userStats.clearChances}).`;
+  else chanceText=` As equipes empataram em chances claras (${userStats.clearChances} cada).`;
+  reading.textContent=`${outcomeText}${chanceText} Força, condição e postura tática influenciam a simulação; o relatório mostra esses fatores para contextualizar o resultado, sem tratar um indicador isolado como causa única.`;
+  contextBox.appendChild(reading);
 
   const ratingsBox=document.getElementById('post-match-player-ratings'); ratingsBox.replaceChildren();
   const title=document.createElement('h4'); title.textContent='Notas dos atletas'; ratingsBox.appendChild(title);
