@@ -919,7 +919,7 @@
       gk.x = this.ball.x; gk.y = this.ball.y; gk.cooldown = 0.6;
       this.ball.owner = gk; this.ball.lastTouchTeam = defSide; this.ball.lastShooter = null;
       this.saves = (this.saves || 0) + 1;
-      this._logEvent(Math.floor(this.matchTime), 'save', `Defesaça de ${gk.name}!`);
+      this._fx('save', 'DEFESAÇA!', '#38bdf8'); this._logEvent(Math.floor(this.matchTime), 'save', `Defesaça de ${gk.name}!`);
       return true;
     }
     _restartSetPiece(side, x, y, label) {
@@ -939,7 +939,7 @@
         this.ball.owner = taker;
         this.ball.lastTouchTeam = side;
       }
-      this._logEvent(Math.floor(this.matchTime), 'setpiece', `${label} para ${team.name}.`);
+      this._fx('sp', label.toUpperCase(), '#facc15'); this._logEvent(Math.floor(this.matchTime), 'setpiece', `${label} para ${team.name}.`);
     }
     _registerGoal(scoringSide) {
       const scorerTeam = scoringSide === 'home' ? this.home : this.away;
@@ -947,7 +947,7 @@
       const shooter = (this.ball.lastShooter && this.ball.lastShooter.side === scoringSide) ? this.ball.lastShooter : scorerTeam.players.find(p => p.role === 'FW');
       this._nextKickoffSide = scoringSide === 'home' ? 'away' : 'home';
       this.lastGoal = { scorer: shooter ? shooter.name : scorerTeam.name, team: scorerTeam.name, color: scorerTeam.primaryColor };
-      this.goalFreeze = 2.0; this.ball.vx = 0; this.ball.vy = 0;
+      this.goalFreeze = 2.0; this.ball.vx = 0; this.ball.vy = 0; this.lastGoalPlayer = shooter || null; this.lastGoalSide = scoringSide; this._confetti();
       this._logEvent(Math.floor(this.matchTime), 'goal', `GOOOOL do ${scorerTeam.name}! (${shooter ? shooter.name : 'Ataque'}) — ${this.home.score} x ${this.away.score}`);
     }
     _logEvent(minute, type, text) {
@@ -963,47 +963,167 @@
         away: { name: this.away.name, score: this.away.score, shots: this.away.shots, possession: Math.round((this.away.possessionTicks / totalPoss) * 100) }
       };
     }
+    _fx(kind, text, color) { (this.fxList = this.fxList || []).push({ kind, text, color, t: 0 }); }
+    _confetti() {
+      this.parts = this.parts || [];
+      const cols = ['#facc15', '#ef4444', '#3b82f6', '#22c55e', '#ffffff', '#f472b6'];
+      for (let i = 0; i < 90; i++) this.parts.push({ x: this.pitchW / 2 + (Math.random() - 0.5) * 300, y: this.pitchH / 2, vx: (Math.random() - 0.5) * 420, vy: -Math.random() * 380 - 60, c: cols[i % cols.length], life: 1.6 + Math.random() * 0.8, r: 2 + Math.random() * 3 });
+    }
+    _drawStands(ctx, W, H) {
+      // arquibancadas com torcida (pontinhos coloridos)
+      const rows = (y0, dir) => {
+        for (let r = 0; r < 3; r++) {
+          ctx.fillStyle = r % 2 ? '#1f2a44' : '#27345a';
+          ctx.fillRect(0, y0 + dir * r * 9 - (dir < 0 ? 9 : 0), W, 9);
+        }
+      };
+      rows(0, 1); rows(H, -1);
+      if (!this._crowd) {
+        this._crowd = [];
+        for (let i = 0; i < 260; i++) this._crowd.push({ x: Math.random() * W, y: Math.random() * 25, c: ['#ef4444', '#facc15', '#60a5fa', '#e5e7eb', '#34d399'][i % 5], ph: Math.random() * 6 });
+      }
+      const tt = performance.now() / 300;
+      this._crowd.forEach((c, i) => {
+        const bounce = (this.goalFreeze > 0 ? 3 : 0.6) * Math.sin(tt * (this.goalFreeze > 0 ? 3 : 1) + c.ph);
+        ctx.fillStyle = c.c;
+        ctx.fillRect(c.x, (i % 2 ? c.y : H - 26 + c.y) + bounce, 3, 3);
+      });
+    }
     render() {
       const ctx = this.ctx, W = this.pitchW, H = this.pitchH, M = this.margin;
-      ctx.fillStyle = '#1b5e20'; ctx.fillRect(0, 0, W, H);
-      for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#1f2a44' : '#27345a'; ctx.fillRect(0, i * 9, W, 9); ctx.fillRect(0, H - (i + 1) * 9, W, 9); }
+      const now = performance.now();
+      const dtF = Math.min(0.05, (now - (this._lastR || now)) / 1000); this._lastR = now;
+      ctx.save();
+      // tremor da tela no gol
+      if (this.goalFreeze > 1.4) ctx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
+      ctx.fillStyle = '#143d19'; ctx.fillRect(0, 0, W, H);
+      this._drawStands(ctx, W, H);
       const stripes = 14, stripeW = (W - M * 2) / stripes;
       for (let i = 0; i < stripes; i++) {
-        ctx.fillStyle = i % 2 === 0 ? '#237a2b' : '#1e6b25';
+        ctx.fillStyle = i % 2 === 0 ? '#2c8a34' : '#237a2b';
         ctx.fillRect(M + i * stripeW, M, stripeW, H - M * 2);
       }
-      ctx.strokeStyle = 'rgba(255,255,255,0.88)'; ctx.lineWidth = 2;
+      // brilho de refletor
+      const gl = ctx.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, W * 0.6);
+      gl.addColorStop(0, 'rgba(255,255,255,0.10)'); gl.addColorStop(1, 'rgba(0,0,0,0.28)');
+      ctx.fillStyle = gl; ctx.fillRect(M, M, W - M * 2, H - M * 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2;
       ctx.strokeRect(M, M, W - M * 2, H - M * 2);
       ctx.beginPath(); ctx.moveTo(W / 2, M); ctx.lineTo(W / 2, H - M); ctx.stroke();
       ctx.beginPath(); ctx.arc(W / 2, H / 2, 58, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, 3, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
       ctx.strokeRect(M, H / 2 - 120, 110, 240); ctx.strokeRect(W - M - 110, H / 2 - 120, 110, 240);
-      ctx.fillStyle = 'rgba(255,255,255,0.22)';
-      ctx.fillRect(M - this.goalW, H / 2 - this.goalH / 2, this.goalW, this.goalH);
-      ctx.fillRect(W - M, H / 2 - this.goalH / 2, this.goalW, this.goalH);
-      ctx.strokeRect(M - this.goalW, H / 2 - this.goalH / 2, this.goalW, this.goalH);
-      ctx.strokeRect(W - M, H / 2 - this.goalH / 2, this.goalW, this.goalH);
+      ctx.strokeRect(M, H / 2 - 55, 42, 110); ctx.strokeRect(W - M - 42, H / 2 - 55, 42, 110);
+      // redes dos gols
+      const gT = H / 2 - this.goalH / 2;
+      [[M - this.goalW, 1], [W - M, 1]].forEach(([gx]) => {
+        ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(gx, gT, this.goalW, this.goalH);
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 1;
+        for (let k = 0; k <= this.goalH; k += 8) { ctx.beginPath(); ctx.moveTo(gx, gT + k); ctx.lineTo(gx + this.goalW, gT + k); ctx.stroke(); }
+        for (let k = 0; k <= this.goalW; k += 5) { ctx.beginPath(); ctx.moveTo(gx + k, gT); ctx.lineTo(gx + k, gT + this.goalH); ctx.stroke(); }
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(gx, gT, this.goalW, this.goalH);
+      });
 
-      const drawPlayer = (p, team) => {
+      // rastro da bola
+      this._trail = this._trail || [];
+      const sp = Math.hypot(this.ball.vx, this.ball.vy);
+      if (sp > 160 && !this.ball.owner && this.goalFreeze <= 0) this._trail.push({ x: this.ball.x, y: this.ball.y - this.ball.z * 0.35, a: 1 });
+      this._trail.forEach(t => { t.a -= dtF * 3.2; });
+      this._trail = this._trail.filter(t => t.a > 0);
+      this._trail.forEach(t => { ctx.fillStyle = `rgba(255,255,255,${(t.a * 0.4).toFixed(2)})`; ctx.beginPath(); ctx.arc(t.x, t.y, 3 * t.a + 1, 0, Math.PI * 2); ctx.fill(); });
+
+      const tt = now / 1000;
+      const scorer = this.goalFreeze > 0 ? this.lastGoalPlayer : null;
+      const drawPlayer = (p, team, idx) => {
         if (p.redCard) return;
-        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(p.x + 2, p.y + 6, 8, 5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = team.primaryColor; ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = team.secondaryColor; ctx.lineWidth = 2; ctx.stroke();
-        ctx.fillStyle = '#f5cba7'; ctx.beginPath(); ctx.arc(p.x, p.y - 2, 3.6, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(String(team.players.indexOf(p) + 1), p.x, p.y + 20);
-        if (this.ball.owner === p) { ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI * 2); ctx.stroke(); }
+        const moving = Math.hypot(p.vx || 0, p.vy || 0) > 0 || (p._px !== undefined && (Math.abs(p.x - p._px) + Math.abs(p.y - p._py)) > 0.3);
+        const dir = (p._px !== undefined && Math.abs(p.x - p._px) > 0.05) ? Math.sign(p.x - p._px) : (team.side === 'home' ? 1 : -1);
+        p._px = p.x; p._py = p.y;
+        const step = moving ? Math.sin(tt * 14 + idx) * 3.2 : 0;
+        let jump = 0;
+        if (scorer === p) jump = Math.abs(Math.sin(tt * 9)) * 10;
+        else if (this.goalFreeze > 0 && team.side === (this.lastGoalSide || '')) jump = Math.abs(Math.sin(tt * 7 + idx)) * 5;
+        const y = p.y - jump;
+        ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + 9, 8, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+        // pernas
+        ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(p.x - 2.5, y + 4); ctx.lineTo(p.x - 2.5 + step * dir, y + 10); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(p.x + 2.5, y + 4); ctx.lineTo(p.x + 2.5 - step * dir, y + 10); ctx.stroke();
+        // camisa com listra
+        const gk = p.role === 'GK';
+        ctx.fillStyle = gk ? '#16a34a' : team.primaryColor;
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(p.x - 6, y - 6, 12, 12, 4) : ctx.rect(p.x - 6, y - 6, 12, 12); ctx.fill();
+        if (!gk) { ctx.fillStyle = team.secondaryColor; ctx.fillRect(p.x - 1.5, y - 6, 3, 12); }
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(p.x - 6, y - 6, 12, 12);
+        // cabeça e cabelo
+        ctx.fillStyle = '#f1c9a5'; ctx.beginPath(); ctx.arc(p.x, y - 9, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = idx % 3 === 0 ? '#2b1b10' : (idx % 3 === 1 ? '#6b4423' : '#111827');
+        ctx.beginPath(); ctx.arc(p.x, y - 10.5, 4, Math.PI, 0); ctx.fill();
+        // número
+        ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+        ctx.fillText(String(idx + 1), p.x, y + 21);
+        if (this.ball.owner === p) {
+          ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(p.x, p.y + 9, 13, 6, 0, 0, Math.PI * 2); ctx.stroke();
+          const nm = (p.name || '').split(' ').slice(-1)[0];
+          ctx.font = 'bold 10px sans-serif'; const w = ctx.measureText(nm).width + 10;
+          ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(p.x - w / 2, y - 30, w, 14);
+          ctx.fillStyle = '#fff'; ctx.fillText(nm, p.x, y - 20);
+        }
       };
-      this.home.players.forEach(p => drawPlayer(p, this.home));
-      this.away.players.forEach(p => drawPlayer(p, this.away));
+      this.home.players.forEach((p, i) => drawPlayer(p, this.home, i));
+      this.away.players.forEach((p, i) => drawPlayer(p, this.away, i));
 
+      // bola
       ctx.fillStyle = 'rgba(0,0,0,0.42)'; ctx.beginPath(); ctx.arc(this.ball.x + this.ball.z * 0.45, this.ball.y + this.ball.z * 0.45 + 2, 4.5, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(this.ball.x, this.ball.y - this.ball.z * 0.35, 4.5 + Math.min(4, this.ball.z * 0.14), 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#111111'; ctx.lineWidth = 1.2; ctx.stroke();
 
+      // confete
+      if (this.parts && this.parts.length) {
+        this.parts.forEach(q => { q.x += q.vx * dtF; q.y += q.vy * dtF; q.vy += 520 * dtF; q.life -= dtF; });
+        this.parts = this.parts.filter(q => q.life > 0 && q.y < H + 20);
+        this.parts.forEach(q => { ctx.fillStyle = q.c; ctx.fillRect(q.x, q.y, q.r, q.r * 1.6); });
+      }
+
+      ctx.restore();
+
+      // PLACAR (HUD)
+      const sc = this.getSummary();
+      const bw = 360, bx = W / 2 - bw / 2, by = 4;
+      ctx.fillStyle = 'rgba(8,12,24,0.88)'; ctx.fillRect(bx, by, bw, 28);
+      ctx.fillStyle = this.home.primaryColor; ctx.fillRect(bx, by, 6, 28);
+      ctx.fillStyle = this.away.primaryColor; ctx.fillRect(bx + bw - 6, by, 6, 28);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'left'; ctx.fillText(String(this.home.name).slice(0, 14).toUpperCase(), bx + 12, by + 19);
+      ctx.textAlign = 'right'; ctx.fillText(String(this.away.name).slice(0, 14).toUpperCase(), bx + bw - 12, by + 19);
+      ctx.textAlign = 'center'; ctx.font = 'bold 16px monospace'; ctx.fillStyle = '#facc15';
+      ctx.fillText(`${this.home.score} - ${this.away.score}`, W / 2, by + 20);
+      ctx.fillStyle = 'rgba(8,12,24,0.88)'; ctx.fillRect(bx + bw + 6, by, 56, 28);
+      ctx.fillStyle = '#e5e7eb'; ctx.font = 'bold 13px monospace'; ctx.fillText(`${sc.minute}'`, bx + bw + 34, by + 19);
+      // barra de posse
+      const pw = 200, px = 12, py = H - 14;
+      ctx.fillStyle = 'rgba(8,12,24,0.7)'; ctx.fillRect(px - 4, py - 14, pw + 8, 24);
+      ctx.fillStyle = this.home.primaryColor; ctx.fillRect(px, py, pw * sc.home.possession / 100, 6);
+      ctx.fillStyle = this.away.primaryColor; ctx.fillRect(px + pw * sc.home.possession / 100, py, pw * (100 - sc.home.possession) / 100, 6);
+      ctx.fillStyle = '#e5e7eb'; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(`Posse ${sc.home.possession}% · Chutes ${sc.home.shots}-${sc.away.shots}`, px, py - 3);
+
+      // avisos (DEFESA!, escanteio...)
+      this.fxList = (this.fxList || []).filter(f => (f.t += dtF) < 1.2);
+      this.fxList.forEach(f => {
+        const a = Math.min(1, (1.2 - f.t) * 2);
+        ctx.globalAlpha = a; ctx.fillStyle = f.color || '#38bdf8';
+        ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center';
+        ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 4; ctx.strokeText(f.text, W / 2, H / 2 - 90 - f.t * 20); ctx.fillText(f.text, W / 2, H / 2 - 90 - f.t * 20);
+        ctx.globalAlpha = 1;
+      });
+
       if (this.goalFreeze > 0) {
         const g = this.lastGoal || {};
+        const k = Math.min(1, (2.0 - this.goalFreeze) * 5);
         ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(W / 2 - 200, H / 2 - 52, 400, 104);
         ctx.fillStyle = g.color || '#facc15'; ctx.fillRect(W / 2 - 200, H / 2 - 52, 8, 104);
-        ctx.fillStyle = '#ffeb3b'; ctx.font = 'bold 34px monospace'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffeb3b'; ctx.font = `bold ${Math.round(24 + 10 * k)}px monospace`; ctx.textAlign = 'center';
         ctx.fillText('GOOOOOOL!', W / 2, H / 2 - 6);
         ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace';
         ctx.fillText(`${g.scorer || ''} · ${g.team || ''}`, W / 2, H / 2 + 26);
