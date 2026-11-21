@@ -18,7 +18,7 @@
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
   }
@@ -60,7 +60,19 @@
     cursor: pointer;
     font-weight: bold;
   }
-  button:hover { border-color: var(--accent); }
+  button { transition: transform .12s, border-color .12s, background .12s; }
+  button:hover { border-color: var(--accent); transform: translateY(-1px); }
+  button:active { transform: translateY(1px); }
+  header { background: repeating-linear-gradient(90deg, #0d1b2a 0 60px, #10223a 60px 120px); box-shadow: 0 4px 16px rgba(0,0,0,.45); }
+  .brand h1 { font-family: Impact, 'Arial Black', sans-serif; font-size: 26px; text-shadow: 2px 2px 0 #000; }
+  .panel { box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+  .badge { box-shadow: inset 0 0 0 1px rgba(250,204,21,.12); }
+  .scoreboard { background: linear-gradient(180deg, #0b1220, #131c33); box-shadow: 0 0 0 1px #000, 0 4px 14px rgba(0,0,0,.4); }
+  tbody tr:nth-child(even) { background: rgba(255,255,255,0.025); }
+  .crest { vertical-align: middle; }
+  .form i { font-style: normal; display: inline-block; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 3px; font-size: 10px; margin-left: 2px; color: #fff; }
+  .form i.fV { background: #16a34a; } .form i.fE { background: #ca8a04; } .form i.fD { background: #dc2626; }
+  .feed .save { color: #a7f3d0; }
   button.primary { background: var(--green); color: #052e16; border-color: #16a34a; }
   button.warn { background: var(--accent); color: #1e1b4b; border-color: #eab308; }
   nav button.active { background: var(--accent); color: #0b132b; border-color: var(--accent); }
@@ -95,25 +107,54 @@
   th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
   th { color: var(--accent); background: #0f172a; }
   tr:hover { background: rgba(255,255,255,0.04); }
+
+  /* ---- Acessibilidade e celular ---- */
+  :focus-visible { outline: 3px solid #38bdf8; outline-offset: 2px; }
+  .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  .table-wrap { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-wrap table { min-width:560px; }
+  canvas { touch-action: manipulation; }
+  #toastBox { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:2000; display:flex; flex-direction:column; gap:8px; width:calc(100% - 24px); max-width:480px; pointer-events:none; }
+  .toast { background:#0f172a; color:var(--text); border:2px solid var(--accent); border-radius:10px; padding:12px 14px; font-size:14px; box-shadow:0 6px 20px rgba(0,0,0,.5); pointer-events:auto; }
+  .toast.err { border-color:#ef4444; }
+  @media (max-width: 700px) {
+    header { padding:10px 12px; }
+    nav { padding:8px 12px; flex-wrap:nowrap; overflow-x:auto; }
+    nav button { flex:0 0 auto; white-space:nowrap; }
+    .container { padding:0 10px; }
+    .panel { padding:12px; }
+    button, select, input { min-height:44px; font-size:15px; }
+    .hud-bar { gap:6px; }
+    #splash h1 { font-size:30px; }
+    .scoreboard { font-size:15px; padding:8px 10px; }
+    .feed { height:200px; }
+    th, td { padding:10px 8px; }
+    #mktSearch { flex:1 1 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; }
+  }
 </style>
 </head>
 <body>
 
-<div id="splash">
+<div id="toastBox" role="status" aria-live="polite"></div>
+
+<div id="splash" role="dialog" aria-label="Início da carreira">
   <h1>⚽ SENSIBLE WORD</h1>
   <p>apresentado por <b>Telas do Passado</b></p>
   <div class="setup-box">
     <label>Moeda da Carreira:
-      <select id="startCurrency" style="width:100%; margin-top:4px;">
+      <select id="startCurrency" style="width:100%; margin-top:4px;" aria-label="Moeda da carreira">
         <option value="EUR">Euro (€ EUR)</option>
         <option value="USD">Dólar ($ USD)</option>
       </select>
     </label>
     <label>Liga Inicial:
-      <select id="startLeague" style="width:100%; margin-top:4px;"></select>
+      <select id="startLeague" aria-label="Liga inicial" style="width:100%; margin-top:4px;"></select>
     </label>
     <label>Seu Clube:
-      <select id="startClub" style="width:100%; margin-top:4px;"></select>
+      <select id="startClub" aria-label="Seu clube" style="width:100%; margin-top:4px;"></select>
     </label>
     <button class="primary" id="btnStartCareer" style="padding:12px; font-size:15px;">▶ INICIAR CARREIRA</button>
     <button id="btnLoadSave">📂 CONTINUAR SAVE SALVO</button>
@@ -129,25 +170,25 @@
     <div class="badge">Clube: <b id="hudClub">-</b></div>
     <div class="badge">Caixa: <b id="hudBudget">-</b></div>
     <div class="badge">Temporada: <b id="hudSeason">2026</b> · Sem <b id="hudWeek">1</b></div>
-    <select id="hudCurrency">
+    <select id="hudCurrency" aria-label="Moeda exibida">
       <option value="EUR">€ EUR</option>
       <option value="USD">$ USD</option>
     </select>
-    <button id="btnSave">💾 Salvar</button>
-    <button id="btnExportJson" title="Baixar backup .json">⬇ JSON</button>
+    <button id="btnSave" aria-label="Salvar carreira">💾 Salvar</button>
+    <button id="btnExportJson" title="Baixar backup .json" aria-label="Baixar backup em arquivo JSON">⬇ JSON</button>
   </div>
 </header>
 
-<nav>
-  <button class="active" data-tab="match">🏟️ Partida 2D</button>
-  <button data-tab="squad">👕 Elenco & Tática</button>
-  <button data-tab="market">💼 Mercado & Propostas</button>
-  <button data-tab="table">🏆 Liga, Copas & Olimpíadas</button>
+<nav role="tablist" aria-label="Seções do jogo">
+  <button class="active" data-tab="match" role="tab" id="tabbtn-match" aria-controls="tab-match" aria-selected="true">🏟️ Partida 2D</button>
+  <button data-tab="squad" role="tab" id="tabbtn-squad" aria-controls="tab-squad" aria-selected="false">👕 Elenco & Tática</button>
+  <button data-tab="market" role="tab" id="tabbtn-market" aria-controls="tab-market" aria-selected="false">💼 Mercado & Propostas</button>
+  <button data-tab="table" role="tab" id="tabbtn-table" aria-controls="tab-table" aria-selected="false">🏆 Liga, Copas & Torneio Mundial</button>
 </nav>
 
 <div class="container">
-  <section id="tab-match" class="panel">
-    <div class="scoreboard">
+  <section id="tab-match" role="tabpanel" aria-labelledby="tabbtn-match" class="panel">
+    <div class="scoreboard" role="group" aria-label="Placar">
       <span id="sbHome">Casa 0</span>
       <span id="sbTime" style="color:var(--accent);">00' · PRÉ-JOGO</span>
       <span id="sbAway">0 Visitante</span>
@@ -155,58 +196,59 @@
 
     <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center;">
       <button class="primary" id="btnPlayMatch">▶ Rodada da Liga</button>
+      <button id="btnSimMatch" title="Resultado na hora, sem assistir à partida">⏩ Simular rodada</button>
       <button class="warn" id="btnPlayContinental">🏆 Copa Continental</button>
-      <button class="warn" id="btnPlayOlympics">🏅 Olimpíadas (16 Seleções)</button>
-      <button id="btnPauseMatch">⏸ Pausar</button>
-      <select id="selSpeed">
+      <button class="warn" id="btnPlayOlympics">🏅 Torneio Mundial (16 Seleções)</button>
+      <button id="btnPauseMatch" aria-label="Pausar ou continuar a partida">⏸ Pausar</button>
+      <select id="selSpeed" aria-label="Velocidade da partida">
         <option value="1">1x</option>
         <option value="2">2x</option>
         <option value="4">4x</option>
       </select>
-      <select id="selLiveFormation">
+      <select id="selLiveFormation" aria-label="Formação">
         <option value="4-4-2">4-4-2</option>
         <option value="4-3-3">4-3-3</option>
         <option value="3-5-2">3-5-2</option>
       </select>
-      <select id="selLiveMentality">
+      <select id="selLiveMentality" aria-label="Mentalidade">
         <option value="balanced">Equilibrado</option>
         <option value="attacking">Pressão Total</option>
         <option value="defensive">Retranca</option>
       </select>
-      <select id="selSubOut" title="Sai de campo"></select>
-      <select id="selSubIn" title="Entra do banco"></select>
+      <select id="selSubOut" title="Sai de campo" aria-label="Jogador que sai"></select>
+      <select id="selSubIn" title="Entra do banco" aria-label="Jogador que entra"></select>
       <button id="btnDoSub">🔄 Substituir</button>
     </div>
 
     <div class="match-grid">
-      <canvas id="pitchCanvas" width="900" height="560"></canvas>
+      <canvas id="pitchCanvas" width="900" height="560" role="img" aria-label="Campo de futebol 2D da partida. Acompanhe o placar e os lances no texto ao lado."></canvas>
       <div>
         <div class="badge" style="margin-bottom:8px;">
           Posse: <b id="statPoss">50% - 50%</b> · Chutes: <b id="statShots">0 - 0</b>
         </div>
-        <div class="feed" id="matchFeed">
-          <div>Escolha <b>Rodada da Liga</b>, <b>Copa Continental</b> ou <b>Olimpíadas</b> para entrar em campo no modo 2D!</div>
+        <div class="feed" id="matchFeed" role="log" aria-live="polite" aria-label="Lances da partida">
+          <div>Escolha <b>Rodada da Liga</b>, <b>Copa Continental</b> ou <b>Torneio Mundial</b> para entrar em campo no modo 2D!</div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="tab-squad" class="panel hidden">
+  <section id="tab-squad" role="tabpanel" aria-labelledby="tabbtn-squad" class="panel hidden">
     <h2>Elenco Principal & Reserva</h2>
-    <table>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Tabela (role para o lado no celular)"><table>
       <thead>
         <tr><th>Nome</th><th>Pos</th><th>Idade</th><th>OVR</th><th>Vel</th><th>Pas</th><th>Fin</th><th>Des</th><th>Salário/Sem</th><th>Valor</th></tr>
       </thead>
       <tbody id="squadTable"></tbody>
-    </table>
+    </table></div>
   </section>
 
-  <section id="tab-market" class="panel hidden">
+  <section id="tab-market" role="tabpanel" aria-labelledby="tabbtn-market" class="panel hidden">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
       <h2 style="margin:0;">Mercado Internacional (<span id="windowStatus">Janela Aberta</span>)</h2>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <input id="mktSearch" placeholder="Buscar jogador ou clube...">
-        <select id="mktPos">
+        <input id="mktSearch" aria-label="Buscar jogador ou clube" placeholder="Buscar jogador ou clube...">
+        <select id="mktPos" aria-label="Filtrar por posição">
           <option value="ALL">Todas Posições</option>
           <option value="GK">Goleiro (GK)</option>
           <option value="DF">Defensor (DF)</option>
@@ -219,25 +261,28 @@
 
     <div id="offersBox" class="panel" style="background:#0f172a;"></div>
 
-    <table>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Tabela (role para o lado no celular)"><table>
       <thead>
         <tr><th>Jogador</th><th>Pos</th><th>Idade</th><th>OVR</th><th>Clube Atual</th><th>Liga</th><th>Preço</th><th>Ação</th></tr>
       </thead>
       <tbody id="marketTable"></tbody>
-    </table>
+    </table></div>
   </section>
 
-  <section id="tab-table" class="panel hidden">
+  <section id="tab-table" role="tabpanel" aria-labelledby="tabbtn-table" class="panel hidden">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
       <h2 id="leagueTitle">Classificação da Liga</h2>
       <div class="badge" id="calendarInfo">Semana 1 · Pré-Temporada</div>
     </div>
-    <table>
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Tabela (role para o lado no celular)"><table>
       <thead>
         <tr><th>#</th><th>Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th></tr>
       </thead>
       <tbody id="standingsTable"></tbody>
-    </table>
+    </table></div>
+
+    <h3 style="margin-top:22px;">🏆 Sala de troféus e histórico</h3>
+    <div id="historyBox"></div>
 
     <div id="continentalBracketBox" style="margin-top:22px;"></div>
     <div id="olympicBracketBox" style="margin-top:22px;"></div>
@@ -252,18 +297,18 @@
      MÓDULO 1: BANCO DE DADOS MUNDIAL (12 LIGAS + 16 SELEÇÕES)
      ========================================================= */
   const LEAGUES_CONFIG = [
-    { id: 'BRA', name: 'Campeonato Brasileiro', region: 'SA', clubs: ['Flamengo', 'Palmeiras', 'São Paulo', 'Corinthians', 'Atlético-MG', 'Cruzeiro', 'Grêmio', 'Internacional', 'Fluminense', 'Botafogo', 'Vasco', 'Santos', 'Athletico-PR', 'Bahia', 'Fortaleza', 'Bragantino'] },
-    { id: 'ARG', name: 'Liga Profesional Argentina', region: 'SA', clubs: ['River Plate', 'Boca Juniors', 'Racing', 'Independiente', 'San Lorenzo', 'Estudiantes', 'Vélez Sarsfield', 'Talleres', 'Lanús', 'Rosario Central', 'Newell’s Old Boys', 'Huracán'] },
-    { id: 'URU', name: 'Campeonato Uruguayo', region: 'SA', clubs: ['Peñarol', 'Nacional', 'Defensor Sporting', 'Danubio', 'Liverpool-URU', 'Montevideo Wanderers', 'Cerro Largo', 'Fénix'] },
-    { id: 'COL', name: 'Liga BetPlay Colombia', region: 'SA', clubs: ['Atlético Nacional', 'Millonarios', 'América de Cali', 'Junior Barranquilla', 'Santa Fe', 'Deportivo Cali', 'Independiente Medellín', 'Once Caldas'] },
-    { id: 'CHI', name: 'Primera División Chile', region: 'SA', clubs: ['Colo-Colo', 'Universidad de Chile', 'Universidad Católica', 'Cobreloa', 'Unión Española', 'Palestino', 'Huachipato', 'Audax Italiano'] },
-    { id: 'MEX', name: 'Liga MX México', region: 'SA', clubs: ['América-MEX', 'Chivas Guadalajara', 'Cruz Azul', 'Tigres UANL', 'Monterrey', 'Pumas UNAM', 'Toluca', 'Pachuca'] },
-    { id: 'ENG', name: 'Premier League', region: 'EU', clubs: ['Manchester City', 'Arsenal', 'Liverpool', 'Manchester United', 'Chelsea', 'Tottenham', 'Newcastle', 'Aston Villa', 'West Ham', 'Brighton', 'Everton', 'Nottingham Forest'] },
-    { id: 'ESP', name: 'La Liga', region: 'EU', clubs: ['Real Madrid', 'Barcelona', 'Atlético de Madrid', 'Athletic Bilbao', 'Real Sociedad', 'Villarreal', 'Real Betis', 'Sevilla', 'Valencia', 'Girona'] },
-    { id: 'ITA', name: 'Serie A Italia', region: 'EU', clubs: ['Inter de Milão', 'Milan', 'Juventus', 'Napoli', 'Roma', 'Lazio', 'Atalanta', 'Fiorentina', 'Bologna', 'Torino'] },
-    { id: 'GER', name: 'Bundesliga', region: 'EU', clubs: ['Bayern de Munique', 'Borussia Dortmund', 'Bayer Leverkusen', 'RB Leipzig', 'Stuttgart', 'Eintracht Frankfurt', 'Wolfsburg', 'Borussia M’gladbach'] },
-    { id: 'FRA', name: 'Ligue 1', region: 'EU', clubs: ['Paris Saint-Germain', 'Olympique de Marseille', 'Monaco', 'Lyon', 'Lille', 'Nice', 'Lens', 'Rennes'] },
-    { id: 'POR', name: 'Primeira Liga Portugal', region: 'EU', clubs: ['Benfica', 'Porto', 'Sporting', 'Braga', 'Vitória de Guimarães', 'Boavista', 'Famalicão', 'Gil Vicente'] }
+    { id: 'BRA', name: 'Brasileirão Brasa', region: 'SA', clubs: ['Fla Mídia', 'Palmeirinhas', 'Sompo', 'Curintia', 'Atlético Minerão', 'Cruzeirão', 'Grêmo Gaúcho', 'Internacionau', 'Fluanda', 'Botafugo', 'Visca', 'Santoso', 'Athletiko-PR', 'Bahêa', 'Fortalesa', 'Bragantinho'] },
+    { id: 'ARG', name: 'Liga Platina Argentina', region: 'SA', clubs: ['Rio Prata', 'Boka Juniores', 'Racinga', 'Indepediente', 'San Lorenço', 'Estudantes LP', 'Vélez Sarsfeld', 'Talheres', 'Lanuz', 'Rosário Centro', 'Newell’s Old Boyz', 'Huracão'] },
+    { id: 'URU', name: 'Torneio Uruguaio', region: 'SA', clubs: ['Peñarrol', 'Nacionau', 'Defensor Esporte', 'Danubyo', 'Liverpul-URU', 'Montevidéu Andarilhos', 'Cerro Longo', 'Fênyx'] },
+    { id: 'COL', name: 'Liga Aposta Colômbia', region: 'SA', clubs: ['Atlético Nacionau', 'Milionários FC', 'Améreca de Cali', 'Júnior Baranquilla', 'Santa Fé Bogotano', 'Desportivo Cali', 'Independente Medelim', 'Onze Caldas'] },
+    { id: 'CHI', name: 'Primeira Divisão Chilena', region: 'SA', clubs: ['Colo-Colô', 'Univerzidad de Chilly', 'Univerzidad Católika', 'Cobreloá', 'Unión Espanhola', 'Palestinho', 'Huachipatu', 'Áudax Italianinho'] },
+    { id: 'MEX', name: 'Liga MZ México', region: 'SA', clubs: ['Améreca-MEX', 'Chivitas Guadalajara', 'Cruz Azulão', 'Tigres UNAL', 'Montererrei', 'Pumas UNAN', 'Tolucá', 'Pachuka'] },
+    { id: 'ENG', name: 'Liga Premium Inglesa', region: 'EU', clubs: ['Mancheste Citi', 'Arsenau', 'Liverpul', 'Mancheste Unaited', 'Chelsi', 'Totinham', 'Newcastelo', 'Aston Vila', 'Wést Hame', 'Braiton', 'Evertom', 'Notingam Floresta'] },
+    { id: 'ESP', name: 'La Ligona', region: 'EU', clubs: ['Rial Madri', 'Barcelonga', 'Atlético de Madrido', 'Atlétic Bilbau', 'Rial Sociedade', 'Vilarrial', 'Rial Betes', 'Sevilia', 'Valencha', 'Giróna'] },
+    { id: 'ITA', name: 'Calcio Itália Pro', region: 'EU', clubs: ['Inter de Milhão', 'Milen', 'Juventudus', 'Nápole', 'Romã', 'Lazyo', 'Atalantra', 'Fiorentinha', 'Bolonhesa', 'Tourino'] },
+    { id: 'GER', name: 'Bondesliga', region: 'EU', clubs: ['Bairen de Munique', 'Borússia Dortmunde', 'Baier Leverkuzen', 'RB Laipzigue', 'Stutgarte', 'Eintrache Frankfurte', 'Volfsburgo', 'Borússia Mgladbaque'] },
+    { id: 'FRA', name: 'Liga Francesa Um', region: 'EU', clubs: ['Pari Saint-Germén', 'Olimpique de Marselha', 'Monacão', 'Lyonzão', 'Lili', 'Nicezinho', 'Lenz', 'Renes'] },
+    { id: 'POR', name: 'Liga Portugal Pro', region: 'EU', clubs: ['Benfiga', 'Portão', 'Sportingue', 'Braguinha', 'Vitória de Gimarães', 'Boavistinha', 'Famalicón', 'Gil Vicenti'] }
   ];
 
   const OLYMPIC_NATIONS_16 = [
@@ -275,8 +320,8 @@
     'Nova Zelândia', 'Fiji'
   ];
 
-  const FIRST_NAMES = ['Lucas', 'Mateus', 'Gabriel', 'Rafael', 'Bruno', 'Diego', 'Thiago', 'Enzo', 'Julián', 'Lautaro', 'Carlos', 'Luis', 'Marco', 'Luca', 'Matteo', 'Lorenzo', 'Hugo', 'Léo', 'Antoine', 'Kylian', 'Jude', 'Declan', 'Harry', 'Phil', 'Florian', 'Jamal', 'Kai', 'Pedri', 'Gavi', 'Lamine', 'João', 'Bernardo', 'Vitinha', 'Rúben'];
-  const LAST_NAMES = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Costa', 'Alves', 'Ferreira', 'Gómez', 'Rodríguez', 'Fernández', 'López', 'Martínez', 'Díaz', 'Romero', 'Rossi', 'Russo', 'Ferrari', 'Esposito', 'Bianchi', 'Dupont', 'Laurent', 'Moreau', 'Bernard', 'Smith', 'Johnson', 'Williams', 'Brown', 'Taylor', 'Müller', 'Schmidt', 'Weber', 'Wagner', 'Neves'];
+  const FIRST_NAMES = ['Lucas', 'Mateus', 'Gabriel', 'Rafael', 'Bruno', 'Diego', 'Thiago', 'Enzo', 'Julião', 'Lautério', 'Carlos', 'Luis', 'Marco', 'Luca', 'Matteo', 'Lorenzo', 'Hugo', 'Léo', 'Antônio', 'Kilian', 'Judas', 'Declo', 'Harvey', 'Filipe', 'Florêncio', 'Jamil', 'Kaito', 'Pedrito', 'Gavito', 'Lamini', 'João', 'Bernardo', 'Vitão', 'Rubão'];
+  const LAST_NAMES = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Costa', 'Alves', 'Ferreira', 'Gómez', 'Rodríguez', 'Fernández', 'López', 'Martínez', 'Díaz', 'Romero', 'Rossi', 'Russo', 'Ferrari', 'Esposito', 'Bianchi', 'Dupont', 'Laurent', 'Moreau', 'Bernard', 'Smith', 'Johnson', 'Williams', 'Brown', 'Taylor', 'Müller', 'Schmidt', 'Weber', 'Wagner', 'Nevis'];
   const PALETTES = [
     ['#d92b2b', '#ffffff'], ['#1d4ed8', '#ffffff'], ['#15803d', '#ffffff'],
     ['#111827', '#facc15'], ['#7e22ce', '#ffffff'], ['#ea580c', '#111827'],
@@ -284,6 +329,29 @@
   ];
 
   function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+  /* Resultado rápido (sem assistir) baseado na força dos elencos: Poisson + vantagem de mandante.
+     Calibrado por script: ~2,6 gols por jogo; o favorito vence bem mais, mas azarão ainda ganha. */
+  function teamRating(club) {
+    const sq = (club && club.squad ? club.squad : []).slice(0, 11);
+    if (!sq.length) return 72;
+    return sq.reduce((t, p) => t + (p.overall || 70), 0) / sq.length;
+  }
+  function poisson(lambda) {
+    const L = Math.exp(-lambda); let k = 0, pr = 1;
+    do { k++; pr *= Math.random(); } while (pr > L && k < 12);
+    return k - 1;
+  }
+  function quickSim(home, away) {
+    const d = teamRating(home) - teamRating(away);
+    return { hs: poisson(1.45 * Math.exp((d + 1.5) / 26)), as: poisson(1.15 * Math.exp(-(d + 1.5) / 26)) };
+  }
+  function crestSVG(club, size) {
+    const sz = size || 22;
+    const c1 = (club && club.primaryColor) || '#d92b2b', c2 = (club && club.secondaryColor) || '#ffffff';
+    const ini = String((club && club.name) || '?').replace(/[^A-Za-zÀ-ÿ ]/g, '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+    return `<svg class="crest" width="${sz}" height="${sz}" viewBox="0 0 24 28" aria-hidden="true"><path d="M2 2h20v13c0 6-5 10-10 12C7 25 2 21 2 15z" fill="${c1}" stroke="${c2}" stroke-width="2"/><text x="12" y="17" text-anchor="middle" font-size="9" font-weight="bold" font-family="Arial,sans-serif" fill="${c2}">${ini}</text></svg>`;
+  }
 
   function generatePlayer(id, pos, baseOverall) {
     const age = rand(18, 34);
@@ -343,13 +411,13 @@
   const INTERNATIONAL_CALENDAR = [
     { week: 1,  phase: 'Pré-Temporada', event: 'Amistosos Internacionais & Janela Aberta', windowOpen: true },
     { week: 4,  phase: 'Temporada Regular', event: 'Abertura das 12 Ligas Nacionais', windowOpen: true },
-    { week: 8,  phase: 'Copas Continentais', event: 'Fase de Grupos: Champions League / Libertadores', windowOpen: false },
+    { week: 8,  phase: 'Copas Continentais', event: 'Fase de Grupos: Liga dos Campeões Euro / Copa Libertadura', windowOpen: false },
     { week: 14, phase: 'Copas Continentais', event: 'Fase de Grupos: UEFA Cup / Sul-Americana', windowOpen: false },
     { week: 20, phase: 'Meio de Temporada', event: 'Janela de Transferências de Inverno', windowOpen: true },
     { week: 28, phase: 'Mata-Mata Continental', event: 'Quartas e Semifinais Continentais', windowOpen: false },
     { week: 34, phase: 'Reta Final', event: 'Finais das Ligas e Copas Continentais', windowOpen: false },
     { week: 38, phase: 'Seleções', event: 'Convocação: Copa América / Eurocopa / Copa do Mundo', windowOpen: false },
-    { week: 42, phase: 'Olimpíadas', event: 'Torneio Olímpico de Futebol (16 Seleções)', windowOpen: false },
+    { week: 42, phase: 'Torneio Mundial', event: 'Torneio Mundial de Seleções (16 Seleções)', windowOpen: false },
     { week: 46, phase: 'Encerramento', event: 'Virada de Temporada, Salários e Evolução de Idade', windowOpen: true }
   ];
 
@@ -458,9 +526,11 @@
     constructor(gameState) { this.state = gameState; }
     initContinentalCup(userClub) {
       const region = userClub.region;
-      const cupName = region === 'SA' ? 'Copa Libertadores' : 'UEFA Champions League';
+      const cupName = region === 'SA' ? 'Copa Libertadura' : 'Liga dos Campeões Euro';
       const pool = this.state.clubs.filter(c => c.region === region && c.id !== userClub.id);
-      const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, 7);
+      const shuffled = pool.slice();
+      for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
+      shuffled.length = Math.min(7, shuffled.length);
       const entrants = [userClub, ...shuffled].map(c => ({
         id: c.id, name: c.name, primaryColor: c.primaryColor, secondaryColor: c.secondaryColor,
         squad: c.squad, formation: c.formation, mentality: c.mentality, passingStyle: c.passingStyle
@@ -478,7 +548,7 @@
           formation: '4-3-3', mentality: 'balanced', passingStyle: 'mixed', squad
         };
       });
-      this.state.olympicBracket = { name: 'Olimpíadas — Futebol (16 Seleções)', roundName: 'Oitavas de Final', matches: this._pairBracket(teams), goldMedal: null };
+      this.state.olympicBracket = { name: 'Torneio Mundial de Seleções (16 Seleções)', roundName: 'Oitavas de Final', matches: this._pairBracket(teams), goldMedal: null };
     }
     _buildNationalSquad(nation, ovr) {
       const positions = ['GK', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'FW', 'FW', 'FW', 'GK', 'DF', 'MF', 'FW'];
@@ -510,7 +580,7 @@
       if (!tour) return;
       tour.matches.forEach(m => {
         if (m.winner) return;
-        let hs = Math.floor(Math.random() * 4), as = Math.floor(Math.random() * 4);
+        const q = quickSim(m.home, m.away); let hs = q.hs, as = q.as;
         if (hs === as) { if (Math.random() < 0.5) hs++; else as++; }
         m.homeScore = hs; m.awayScore = as; m.winner = hs > as ? m.home : m.away;
       });
@@ -574,6 +644,8 @@
   /* =========================================================
      MÓDULO 5: MOTOR DE PARTIDA 2D CLÁSSICO (COM RELÓGIO E SAÍDAS)
      ========================================================= */
+  const SAVE_BASE = 0.34;
+  const HOME_EDGE = 1.04;
   const FORMATIONS = {
     '4-4-2': [
       { role: 'GK', x: 0.05, y: 0.50 },
@@ -725,7 +797,7 @@
         if (p.redCard) return;
         if (p.cooldown > 0) p.cooldown = Math.max(0, p.cooldown - dt);
         p.stamina = Math.max(25, p.stamina - dt * 0.22);
-        const maxSpeed = (82 + (p.pace || 70) * 0.75) * (0.72 + 0.28 * (p.stamina / 100));
+        const maxSpeed = (82 + (p.pace || 70) * 0.75) * (0.72 + 0.28 * (p.stamina / 100)) * (team.side === 'home' ? HOME_EDGE : 1);
         if (this.ball.owner === p) { this._handleBallCarrier(p, team, opponent, attackingDir, maxSpeed, dt); return; }
         let targetX, targetY;
         if (p.role === 'GK') {
@@ -805,8 +877,8 @@
 
       const goalTop = this.pitchH / 2 - this.goalH / 2, goalBot = this.pitchH / 2 + this.goalH / 2;
       if (this.ball.y > goalTop && this.ball.y < goalBot && this.ball.z < 26) {
-        if (this.ball.x <= this.margin) { this._registerGoal('away'); return; }
-        if (this.ball.x >= this.pitchW - this.margin) { this._registerGoal('home'); return; }
+        if (this.ball.x <= this.margin) { if (this._keeperSave('home')) return; this._registerGoal('away'); return; }
+        if (this.ball.x >= this.pitchW - this.margin) { if (this._keeperSave('away')) return; this._registerGoal('home'); return; }
       }
 
       // Saída pela linha lateral -> Arremesso Lateral
@@ -834,6 +906,22 @@
         return;
       }
     }
+    _keeperSave(defSide) {
+      const team = defSide === 'home' ? this.home : this.away;
+      const gk = team.players.find(p => p.role === 'GK' && !p.redCard);
+      const shooter = this.ball.lastShooter;
+      if (!gk || !shooter || shooter.side === defSide) return false;
+      const chance = Math.max(0.12, Math.min(0.72, SAVE_BASE + ((gk.gk || 70) - 70) * 0.006 - ((shooter.shooting || 70) - 70) * 0.004));
+      if (Math.random() >= chance) return false;
+      this.ball.vx = 0; this.ball.vy = 0; this.ball.vz = 0; this.ball.spin = 0; this.ball.z = 0;
+      this.ball.x = defSide === 'home' ? this.margin + 24 : this.pitchW - this.margin - 24;
+      this.ball.y = this.pitchH / 2;
+      gk.x = this.ball.x; gk.y = this.ball.y; gk.cooldown = 0.6;
+      this.ball.owner = gk; this.ball.lastTouchTeam = defSide; this.ball.lastShooter = null;
+      this.saves = (this.saves || 0) + 1;
+      this._logEvent(Math.floor(this.matchTime), 'save', `Defesaça de ${gk.name}!`);
+      return true;
+    }
     _restartSetPiece(side, x, y, label) {
       const team = side === 'home' ? this.home : this.away;
       const taker = (label === 'Tiro de Meta')
@@ -858,6 +946,7 @@
       scorerTeam.score++;
       const shooter = (this.ball.lastShooter && this.ball.lastShooter.side === scoringSide) ? this.ball.lastShooter : scorerTeam.players.find(p => p.role === 'FW');
       this._nextKickoffSide = scoringSide === 'home' ? 'away' : 'home';
+      this.lastGoal = { scorer: shooter ? shooter.name : scorerTeam.name, team: scorerTeam.name, color: scorerTeam.primaryColor };
       this.goalFreeze = 2.0; this.ball.vx = 0; this.ball.vy = 0;
       this._logEvent(Math.floor(this.matchTime), 'goal', `GOOOOL do ${scorerTeam.name}! (${shooter ? shooter.name : 'Ataque'}) — ${this.home.score} x ${this.away.score}`);
     }
@@ -877,6 +966,7 @@
     render() {
       const ctx = this.ctx, W = this.pitchW, H = this.pitchH, M = this.margin;
       ctx.fillStyle = '#1b5e20'; ctx.fillRect(0, 0, W, H);
+      for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#1f2a44' : '#27345a'; ctx.fillRect(0, i * 9, W, 9); ctx.fillRect(0, H - (i + 1) * 9, W, 9); }
       const stripes = 14, stripeW = (W - M * 2) / stripes;
       for (let i = 0; i < stripes; i++) {
         ctx.fillStyle = i % 2 === 0 ? '#237a2b' : '#1e6b25';
@@ -899,6 +989,7 @@
         ctx.fillStyle = team.primaryColor; ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = team.secondaryColor; ctx.lineWidth = 2; ctx.stroke();
         ctx.fillStyle = '#f5cba7'; ctx.beginPath(); ctx.arc(p.x, p.y - 2, 3.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText(String(team.players.indexOf(p) + 1), p.x, p.y + 20);
         if (this.ball.owner === p) { ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI * 2); ctx.stroke(); }
       };
       this.home.players.forEach(p => drawPlayer(p, this.home));
@@ -909,9 +1000,13 @@
       ctx.strokeStyle = '#111111'; ctx.lineWidth = 1.2; ctx.stroke();
 
       if (this.goalFreeze > 0) {
-        ctx.fillStyle = 'rgba(0,0,0,0.68)'; ctx.fillRect(W / 2 - 170, H / 2 - 34, 340, 68);
-        ctx.fillStyle = '#ffeb3b'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
-        ctx.fillText('GOOOOOOL!', W / 2, H / 2 + 10);
+        const g = this.lastGoal || {};
+        ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(W / 2 - 200, H / 2 - 52, 400, 104);
+        ctx.fillStyle = g.color || '#facc15'; ctx.fillRect(W / 2 - 200, H / 2 - 52, 8, 104);
+        ctx.fillStyle = '#ffeb3b'; ctx.font = 'bold 34px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('GOOOOOOL!', W / 2, H / 2 - 6);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace';
+        ctx.fillText(`${g.scorer || ''} · ${g.team || ''}`, W / 2, H / 2 + 26);
       }
     }
   }
@@ -949,7 +1044,7 @@
   const audio = new RetroFootballAudio();
   const world = createWorldDatabase();
   let gameState = null, marketSys = null, cupSys = null, engine = null;
-  let currentOpponent = null, activeMatchMode = 'league', activeCupMatch = null;
+  let currentUserHome = true, currentOpponent = null, activeMatchMode = 'league', activeCupMatch = null;
   const $ = id => document.getElementById(id);
 
   function updateScoreboard(summary) {
@@ -1001,12 +1096,13 @@
         const line = document.createElement('div');
         if (ev.type === 'goal') line.className = 'goal';
         if (ev.type === 'setpiece') line.className = 'setpiece';
+        if (ev.type === 'save') line.className = 'save';
         line.textContent = `[${ev.minute}'] ${ev.text}`;
         $('matchFeed').prepend(line);
         updateScoreboard(summary);
       },
       onFinish: (summary) => {
-        if (activeMatchMode === 'league') { applyMatchResult(summary); marketSys.advanceWeek(); }
+        if (activeMatchMode === 'league') { finishLeagueMatch(summary); }
         else if (activeCupMatch) { cupSys.recordUserMatchResult(activeMatchMode, activeCupMatch, summary.home.score, summary.away.score); activeCupMatch = null; }
         activeMatchMode = 'league';
         saveGame(); refreshAllUI();
@@ -1018,29 +1114,79 @@
 
   function getUserClub() { return gameState.clubs.find(c => c.id === gameState.userClubId); }
 
+  function addResult(a, b, ga, gb) {
+    a.played++; b.played++; a.gf += ga; a.ga += gb; b.gf += gb; b.ga += ga;
+    if (ga > gb) { a.wins++; a.points += 3; b.losses++; }
+    else if (ga < gb) { b.wins++; b.points += 3; a.losses++; }
+    else { a.draws++; b.draws++; a.points++; b.points++; }
+  }
   function applyMatchResult(summary) {
     const user = getUserClub(), opp = currentOpponent;
     if (!user || !opp) return;
     const hg = summary.home.score, ag = summary.away.score;
-    user.played++; opp.played++; user.gf += hg; user.ga += ag; opp.gf += ag; opp.ga += hg;
-    if (hg > ag) { user.wins++; user.points += 3; opp.losses++; }
-    else if (hg < ag) { opp.wins++; opp.points += 3; user.losses++; }
-    else { user.draws++; opp.draws++; user.points += 1; opp.points += 1; }
-
+    const ug = currentUserHome ? hg : ag, og = currentUserHome ? ag : hg;
+    addResult(user, opp, ug, og);
     const others = gameState.clubs.filter(c => c.leagueId === user.leagueId && c.id !== user.id && c.id !== opp.id);
     for (let i = 0; i + 1 < others.length; i += 2) {
-      const a = others[i], b = others[i + 1], ga = Math.floor(Math.random() * 4), gb = Math.floor(Math.random() * 4);
-      a.played++; b.played++; a.gf += ga; a.ga += gb; b.gf += gb; b.ga += ga;
-      if (ga > gb) { a.wins++; a.points += 3; b.losses++; }
-      else if (ga < gb) { b.wins++; b.points += 3; a.losses++; }
-      else { a.draws++; b.draws++; a.points++; b.points++; }
+      const q = quickSim(others[i], others[i + 1]);
+      addResult(others[i], others[i + 1], q.hs, q.as);
     }
+    user.lastResult = ug > og ? 'V' : (ug < og ? 'D' : 'E');
+    user.form = ((user.form || '') + user.lastResult).slice(-5);
+    if (ug > og) toast(`Vitória! ${ug} x ${og} contra ${opp.name}.`);
+    else if (ug < og) toast(`Derrota: ${ug} x ${og} contra ${opp.name}.`, true);
+    else toast(`Empate: ${ug} x ${og} contra ${opp.name}.`);
+  }
+  function leagueClubs() { const u = getUserClub(); return gameState.clubs.filter(c => c.leagueId === u.leagueId); }
+  function sortedTable() { return leagueClubs().sort((a, b) => b.points - a.points || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf); }
+  function buildFixtures() {
+    const user = getUserClub();
+    const rivals = gameState.clubs.filter(c => c.leagueId === user.leagueId && c.id !== user.id).map(c => c.id);
+    for (let i = rivals.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rivals[i], rivals[j]] = [rivals[j], rivals[i]]; }
+    const a = rivals.map(id => ({ id, home: true })), b = rivals.slice().reverse().map(id => ({ id, home: false }));
+    gameState.fixtures = a.concat(b);
+  }
+  function nextFixture() {
+    if (!Array.isArray(gameState.fixtures) || !gameState.fixtures.length) buildFixtures();
+    return gameState.fixtures[0];
+  }
+  function finishSeasonIfDone() {
+    if (gameState.fixtures && gameState.fixtures.length) return;
+    const user = getUserClub(), table = sortedTable();
+    const pos = table.findIndex(c => c.id === user.id) + 1, champ = table[0];
+    gameState.history = Array.isArray(gameState.history) ? gameState.history : [];
+    const prize = Math.round((table.length - pos + 1) * 2_500_000 + (pos === 1 ? 10_000_000 : 0));
+    user.budgetUSD += prize;
+    gameState.history.push({ season: gameState.season, league: user.league, position: pos, points: user.points, champion: champ.name, title: champ.id === user.id, prize });
+    const msg = champ.id === user.id
+      ? `🏆 CAMPEÃO de ${user.league}! Prêmio: ${marketSys.formatMoney(prize)}.`
+      : `Temporada ${gameState.season} encerrada: você ficou em ${pos}º. Campeão: ${champ.name}. Prêmio: ${marketSys.formatMoney(prize)}.`;
+    gameState.clubs.forEach(c => { c.points = 0; c.played = 0; c.wins = 0; c.draws = 0; c.losses = 0; c.gf = 0; c.ga = 0; });
+    user.form = '';
+    gameState.season++; gameState.week = 1; gameState.fixtures = [];
+    marketSys._processSeasonProgression();
+    audio.goalCheer();
+    toast(msg);
+  }
+  function finishLeagueMatch(summary) {
+    applyMatchResult(summary);
+    if (Array.isArray(gameState.fixtures) && gameState.fixtures.length) gameState.fixtures.shift();
+    marketSys.advanceWeek();
+    finishSeasonIfDone();
+  }
+  function renderHistory() {
+    const box = $('historyBox');
+    if (!box) return;
+    const h = Array.isArray(gameState.history) ? gameState.history : [];
+    const titles = h.filter(x => x.title).length;
+    if (!h.length) { box.innerHTML = '<small style="color:#94a3b8;">Nenhuma temporada concluída ainda. Jogue todas as rodadas (ida e volta) para fechar a temporada e ganhar prêmio.</small>'; return; }
+    box.innerHTML = `<div style="margin-bottom:8px;">🏆 Títulos: <b style="color:var(--accent)">${titles}</b> · Temporadas: <b>${h.length}</b></div><div class="table-wrap"><table><thead><tr><th>Temp.</th><th>Liga</th><th>Posição</th><th>Pts</th><th>Campeão</th></tr></thead><tbody>${h.slice().reverse().map(x => `<tr><td>${x.season}</td><td>${x.league}</td><td>${x.title ? '🏆 1º' : x.position + 'º'}</td><td>${x.points}</td><td>${x.champion}</td></tr>`).join('')}</tbody></table></div>`;
   }
 
   function refreshAllUI() {
     const user = getUserClub();
     if (!user) return;
-    $('hudClub').textContent = user.name;
+    $('hudClub').innerHTML = crestSVG(user, 20) + ' ' + user.name;
     $('hudBudget').textContent = marketSys.formatMoney(user.budgetUSD);
     $('hudSeason').textContent = gameState.season;
     $('hudWeek').textContent = gameState.week;
@@ -1059,17 +1205,19 @@
 
     $('leagueTitle').textContent = `Classificação — ${user.league}`;
     const slot = marketSys.getCurrentCalendarSlot();
-    $('calendarInfo').textContent = `Semana ${gameState.week} · ${slot.phase}: ${slot.event}`;
+    const fxLeft = Array.isArray(gameState.fixtures) ? gameState.fixtures.length : 0;
+    $('calendarInfo').textContent = `Semana ${gameState.week} · ${slot.phase}: ${slot.event} · Rodadas restantes: ${fxLeft || (leagueClubs().length - 1) * 2}`;
 
-    const tableClubs = gameState.clubs.filter(c => c.leagueId === user.leagueId).sort((a, b) => b.points - a.points || (b.gf - b.ga) - (a.gf - a.ga));
+    const tableClubs = sortedTable();
     const stBody = $('standingsTable'); stBody.innerHTML = '';
     tableClubs.forEach((c, i) => {
       const tr = document.createElement('tr');
       if (c.id === user.id) tr.style.background = 'rgba(250, 204, 21, 0.14)';
-      tr.innerHTML = `<td>${i + 1}</td><td><b>${c.name}</b></td><td><b>${c.points}</b></td><td>${c.played}</td><td>${c.wins}</td><td>${c.draws}</td><td>${c.losses}</td><td>${c.gf}</td><td>${c.ga}</td><td>${c.gf - c.ga}</td>`;
+      tr.innerHTML = `<td>${i + 1}</td><td>${crestSVG(c, 20)} <b>${c.name}</b>${c.id === user.id && c.form ? ' <small class="form">' + c.form.split('').map(f => '<i class="f' + f + '">' + f + '</i>').join('') + '</small>' : ''}</td><td><b>${c.points}</b></td><td>${c.played}</td><td>${c.wins}</td><td>${c.draws}</td><td>${c.losses}</td><td>${c.gf}</td><td>${c.ga}</td><td>${c.gf - c.ga}</td>`;
       stBody.appendChild(tr);
     });
 
+    renderHistory();
     renderTournamentBracket($('continentalBracketBox'), gameState.continentalCup, user.id);
     renderTournamentBracket($('olympicBracketBox'), gameState.olympicBracket, user.id);
   }
@@ -1107,21 +1255,106 @@
       btn.addEventListener('click', () => {
         const [clubId, playerId, price] = btn.dataset.buy.split('|');
         const res = marketSys.buyPlayer(clubId, playerId, Number(price));
-        alert(res.msg);
+        toast(res.msg, !res.ok);
         if (res.ok) { audio.uiClick(); saveGame(); refreshAllUI(); }
       });
     });
   }
 
-  function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState)); } catch (e) {} }
+  /* ---------- Avisos no jogo (substituem alert) ---------- */
+  function toast(msg, isErr) {
+    const box = $('toastBox'), t = document.createElement('div');
+    t.className = 'toast' + (isErr ? ' err' : ''); t.textContent = msg; box.appendChild(t);
+    setTimeout(() => t.remove(), 4500);
+  }
+
+  /* ---------- Save: validação e cópia de segurança ---------- */
+  const SAVE_KEY_PREV = SAVE_KEY + '_prev';
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  const num = (v, d) => (typeof v === 'number' && isFinite(v)) ? v : d;
+  const str = (v, d) => (typeof v === 'string' && v) ? v : d;
+
+  const RENAME_MAP = {"Campeonato Brasileiro": "Brasileirão Brasa", "Liga Profesional Argentina": "Liga Platina Argentina", "Campeonato Uruguayo": "Torneio Uruguaio", "Liga BetPlay Colombia": "Liga Aposta Colômbia", "Primera División Chile": "Primeira Divisão Chilena", "Liga MX México": "Liga MZ México", "Premier League": "Liga Premium Inglesa", "La Liga": "La Ligona", "Serie A Italia": "Calcio Itália Pro", "Bundesliga": "Bondesliga", "Ligue 1": "Liga Francesa Um", "Primeira Liga Portugal": "Liga Portugal Pro", "Copa Libertadores": "Copa Libertadura", "UEFA Champions League": "Liga dos Campeões Euro", "Olimpíadas — Futebol (16 Seleções)": "Torneio Mundial de Seleções (16 Seleções)", "Flamengo": "Fla Mídia", "Palmeiras": "Palmeirinhas", "São Paulo": "Sompo", "Corinthians": "Curintia", "Atlético-MG": "Atlético Minerão", "Cruzeiro": "Cruzeirão", "Grêmio": "Grêmo Gaúcho", "Internacional": "Internacionau", "Fluminense": "Fluanda", "Botafogo": "Botafugo", "Vasco": "Visca", "Santos": "Santoso", "Athletico-PR": "Athletiko-PR", "Bahia": "Bahêa", "Fortaleza": "Fortalesa", "Bragantino": "Bragantinho", "River Plate": "Rio Prata", "Boca Juniors": "Boka Juniores", "Racing": "Racinga", "Independiente": "Indepediente", "San Lorenzo": "San Lorenço", "Estudiantes": "Estudantes LP", "Vélez Sarsfield": "Vélez Sarsfeld", "Talleres": "Talheres", "Lanús": "Lanuz", "Rosario Central": "Rosário Centro", "Newell’s Old Boys": "Newell’s Old Boyz", "Huracán": "Huracão", "Peñarol": "Peñarrol", "Nacional": "Nacionau", "Defensor Sporting": "Defensor Esporte", "Danubio": "Danubyo", "Liverpool-URU": "Liverpul-URU", "Montevideo Wanderers": "Montevidéu Andarilhos", "Cerro Largo": "Cerro Longo", "Fénix": "Fênyx", "Atlético Nacional": "Atlético Nacionau", "Millonarios": "Milionários FC", "América de Cali": "Améreca de Cali", "Junior Barranquilla": "Júnior Baranquilla", "Santa Fe": "Santa Fé Bogotano", "Deportivo Cali": "Desportivo Cali", "Independiente Medellín": "Independente Medelim", "Once Caldas": "Onze Caldas", "Colo-Colo": "Colo-Colô", "Universidad de Chile": "Univerzidad de Chilly", "Universidad Católica": "Univerzidad Católika", "Cobreloa": "Cobreloá", "Unión Española": "Unión Espanhola", "Palestino": "Palestinho", "Huachipato": "Huachipatu", "Audax Italiano": "Áudax Italianinho", "América-MEX": "Améreca-MEX", "Chivas Guadalajara": "Chivitas Guadalajara", "Cruz Azul": "Cruz Azulão", "Tigres UANL": "Tigres UNAL", "Monterrey": "Montererrei", "Pumas UNAM": "Pumas UNAN", "Toluca": "Tolucá", "Pachuca": "Pachuka", "Manchester City": "Mancheste Citi", "Arsenal": "Arsenau", "Liverpool": "Liverpul", "Manchester United": "Mancheste Unaited", "Chelsea": "Chelsi", "Tottenham": "Totinham", "Newcastle": "Newcastelo", "Aston Villa": "Aston Vila", "West Ham": "Wést Hame", "Brighton": "Braiton", "Everton": "Evertom", "Nottingham Forest": "Notingam Floresta", "Real Madrid": "Rial Madri", "Barcelona": "Barcelonga", "Atlético de Madrid": "Atlético de Madrido", "Athletic Bilbao": "Atlétic Bilbau", "Real Sociedad": "Rial Sociedade", "Villarreal": "Vilarrial", "Real Betis": "Rial Betes", "Sevilla": "Sevilia", "Valencia": "Valencha", "Girona": "Giróna", "Inter de Milão": "Inter de Milhão", "Milan": "Milen", "Juventus": "Juventudus", "Napoli": "Nápole", "Roma": "Romã", "Lazio": "Lazyo", "Atalanta": "Atalantra", "Fiorentina": "Fiorentinha", "Bologna": "Bolonhesa", "Torino": "Tourino", "Bayern de Munique": "Bairen de Munique", "Borussia Dortmund": "Borússia Dortmunde", "Bayer Leverkusen": "Baier Leverkuzen", "RB Leipzig": "RB Laipzigue", "Stuttgart": "Stutgarte", "Eintracht Frankfurt": "Eintrache Frankfurte", "Wolfsburg": "Volfsburgo", "Borussia M’gladbach": "Borússia Mgladbaque", "Paris Saint-Germain": "Pari Saint-Germén", "Olympique de Marseille": "Olimpique de Marselha", "Monaco": "Monacão", "Lyon": "Lyonzão", "Lille": "Lili", "Nice": "Nicezinho", "Lens": "Lenz", "Rennes": "Renes", "Benfica": "Benfiga", "Porto": "Portão", "Sporting": "Sportingue", "Braga": "Braguinha", "Vitória de Guimarães": "Vitória de Gimarães", "Boavista": "Boavistinha", "Famalicão": "Famalicón", "Gil Vicente": "Gil Vicenti"};
+  function migrateNames(v) {
+    if (typeof v === 'string') return Object.prototype.hasOwnProperty.call(RENAME_MAP, v) ? RENAME_MAP[v] : v;
+    if (Array.isArray(v)) return v.map(migrateNames);
+    if (v && typeof v === 'object') { const o = {}; Object.keys(v).forEach(k => { o[k] = (k === 'id' || k === 'playerId' || k === 'pos') ? v[k] : migrateNames(v[k]); }); return o; }
+    return v;
+  }
+  // Recebe o texto do save, devolve um estado seguro (valores padrão onde faltar) ou lança erro.
+  function sanitizeSave(raw) {
+    const data = migrateNames(JSON.parse(raw)); // saves antigos: troca nomes reais pelos parodiados
+    if (!isObj(data)) throw new Error('save não é um objeto');
+    if (!Array.isArray(data.clubs) || data.clubs.length < 2) throw new Error('sem clubes');
+    const POS = ['GK', 'DF', 'MF', 'FW'];
+    const clubs = [];
+    data.clubs.forEach(c => {
+      if (!isObj(c) || typeof c.id !== 'string' || !Array.isArray(c.squad)) return;
+      const ref = world.clubs.find(w => w.id === c.id) || {};
+      const squad = [];
+      c.squad.forEach((p, i) => {
+        if (!isObj(p)) return;
+        const ovr = num(p.overall, 70);
+        squad.push({
+          id: str(p.id, `${c.id}_p${i + 1}`), name: str(p.name, `Jogador ${i + 1}`),
+          pos: POS.includes(p.pos) ? p.pos : 'MF', age: num(p.age, 25), overall: ovr,
+          pace: num(p.pace, ovr), shooting: num(p.shooting, ovr), passing: num(p.passing, ovr),
+          tackling: num(p.tackling, ovr), gk: num(p.gk, 25), stamina: num(p.stamina, 100),
+          valueUSD: num(p.valueUSD, 1000000), wageUSD: num(p.wageUSD, 10000)
+        });
+      });
+      const leagueId = str(c.leagueId, ref.leagueId);
+      if (!leagueId) return;
+      clubs.push({
+        id: c.id, name: str(c.name, ref.name || c.id), leagueId, league: str(c.league, ref.league || leagueId),
+        region: str(c.region, ref.region || 'EU'),
+        primaryColor: str(c.primaryColor, ref.primaryColor || '#d92b2b'), secondaryColor: str(c.secondaryColor, ref.secondaryColor || '#ffffff'),
+        budgetUSD: num(c.budgetUSD, 10000000),
+        formation: ['4-4-2', '4-3-3', '3-5-2'].includes(c.formation) ? c.formation : '4-4-2',
+        mentality: ['balanced', 'attacking', 'defensive'].includes(c.mentality) ? c.mentality : 'balanced',
+        passingStyle: str(c.passingStyle, 'mixed'),
+        points: num(c.points, 0), played: num(c.played, 0), wins: num(c.wins, 0), draws: num(c.draws, 0),
+        losses: num(c.losses, 0), gf: num(c.gf, 0), ga: num(c.ga, 0), form: str(c.form, '').slice(-5), squad
+      });
+    });
+    const user = clubs.find(c => c.id === data.userClubId);
+    if (!user) throw new Error('clube do jogador não encontrado');
+    if (user.squad.length < 14) throw new Error('elenco incompleto');
+    const state = Object.assign({}, data, {
+      userClubId: data.userClubId, currency: data.currency === 'USD' ? 'USD' : 'EUR',
+      week: Math.max(1, Math.floor(num(data.week, 1))), season: Math.floor(num(data.season, 2026)),
+      clubs, olympicNations: (Array.isArray(data.olympicNations) && data.olympicNations.length) ? data.olympicNations.filter(n => typeof n === 'string') : world.olympicNations,
+      incomingOffers: (Array.isArray(data.incomingOffers) ? data.incomingOffers : []).filter(o => isObj(o) && o.id && o.playerId && o.buyerClubId),
+      continentalCup: isObj(data.continentalCup) ? data.continentalCup : null,
+      olympicBracket: isObj(data.olympicBracket) ? data.olympicBracket : null,
+      fixtures: (Array.isArray(data.fixtures) ? data.fixtures : []).filter(f => isObj(f) && typeof f.id === 'string').map(f => ({ id: f.id, home: !!f.home })),
+      history: (Array.isArray(data.history) ? data.history : []).filter(isObj).slice(-60).map(x => ({ season: num(x.season, 0), league: str(x.league, '-'), position: num(x.position, 0), points: num(x.points, 0), champion: str(x.champion, '-'), title: !!x.title, prize: num(x.prize, 0) }))
+    });
+    return state;
+  }
+
+  function saveGame() {
+    try {
+      const cur = localStorage.getItem(SAVE_KEY);
+      if (cur) { try { sanitizeSave(cur); localStorage.setItem(SAVE_KEY_PREV, cur); } catch (e) {} } // só guarda como anterior se estava íntegro
+      localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
+      return true;
+    } catch (e) { return false; }
+  }
 
   $('btnStartCareer').addEventListener('click', () => startCareer(null));
   $('btnLoadSave').addEventListener('click', () => {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return alert('Nenhum save encontrado ainda.');
-    startCareer(JSON.parse(raw));
+    let rawMain = null, rawPrev = null;
+    try { rawMain = localStorage.getItem(SAVE_KEY); rawPrev = localStorage.getItem(SAVE_KEY_PREV); } catch (e) {}
+    if (!rawMain && !rawPrev) return toast('Nenhum save encontrado ainda.', true);
+    let state = null, usedPrev = false;
+    try { state = sanitizeSave(rawMain); } catch (e) { console.warn('Save principal inválido:', e); }
+    if (!state && rawPrev) { try { state = sanitizeSave(rawPrev); usedPrev = true; } catch (e) { console.warn('Save anterior inválido:', e); } }
+    if (!state) return toast('O save está corrompido e não pôde ser carregado. Você pode iniciar uma nova carreira.', true);
+    startCareer(state);
+    if (usedPrev) toast('O save principal estava danificado. Carregamos a cópia anterior de segurança.');
   });
-  $('btnSave').addEventListener('click', () => { saveGame(); audio.uiClick(); alert('Carreira salva com sucesso!'); });
+  $('btnSave').addEventListener('click', () => { audio.uiClick(); { const ok = saveGame(); toast(ok ? 'Carreira salva com sucesso!' : 'Não foi possível salvar (armazenamento bloqueado ou cheio). Use o botão ⬇ JSON.', !ok); } });
   $('btnExportJson').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(gameState, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -1132,8 +1365,8 @@
   document.querySelectorAll('nav button[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       audio.uiClick();
-      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      document.querySelectorAll('nav button').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+      btn.classList.add('active'); btn.setAttribute('aria-selected', 'true');
       const tab = btn.dataset.tab;
       document.querySelectorAll('.container > section').forEach(sec => sec.classList.toggle('hidden', sec.id !== `tab-${tab}`));
     });
@@ -1142,10 +1375,21 @@
   $('btnPlayMatch').addEventListener('click', () => {
     if (engine.running) return;
     activeMatchMode = 'league';
-    const user = getUserClub(), rivals = gameState.clubs.filter(c => c.leagueId === user.leagueId && c.id !== user.id);
-    currentOpponent = rivals[Math.floor(Math.random() * rivals.length)];
+    const user = getUserClub(), fx = nextFixture();
+    currentOpponent = gameState.clubs.find(c => c.id === fx.id); currentUserHome = fx.home;
     $('matchFeed').innerHTML = '';
-    engine.setupMatch(user, currentOpponent); engine.speed = Number($('selSpeed').value); engine.start();
+    if (fx.home) engine.setupMatch(user, currentOpponent); else engine.setupMatch(currentOpponent, user);
+    engine.speed = Number($('selSpeed').value); engine.start();
+  });
+
+  $('btnSimMatch').addEventListener('click', () => {
+    if (engine.running) return;
+    activeMatchMode = 'league';
+    const user = getUserClub(), fx = nextFixture();
+    currentOpponent = gameState.clubs.find(c => c.id === fx.id); currentUserHome = fx.home;
+    const q = fx.home ? quickSim(user, currentOpponent) : quickSim(currentOpponent, user);
+    finishLeagueMatch({ home: { score: q.hs }, away: { score: q.as } });
+    saveGame(); refreshAllUI();
   });
 
   $('btnPlayContinental').addEventListener('click', () => {
@@ -1153,7 +1397,7 @@
     const user = getUserClub();
     if (!gameState.continentalCup || gameState.continentalCup.champion) cupSys.initContinentalCup(user);
     const nextM = cupSys.getPendingUserMatch('continentalCup', user.id);
-    if (!nextM) return alert(`Copa encerrada ou seu time foi eliminado! Campeão: ${gameState.continentalCup.champion || 'Em andamento'}`);
+    if (!nextM) return toast(`Copa encerrada ou seu time foi eliminado! Campeão: ${gameState.continentalCup.champion || 'Em andamento'}`);
     activeMatchMode = 'continentalCup'; activeCupMatch = nextM;
     $('matchFeed').innerHTML = `<div><b>🏆 ${gameState.continentalCup.name} — ${gameState.continentalCup.roundName}</b></div>`;
     engine.setupMatch(nextM.home, nextM.away); engine.speed = Number($('selSpeed').value); engine.start();
@@ -1164,7 +1408,7 @@
     const user = getUserClub();
     if (!gameState.olympicBracket || gameState.olympicBracket.goldMedal) cupSys.initOlympicTournament(user);
     const nextM = cupSys.getPendingUserMatch('olympicBracket', user.id);
-    if (!nextM) return alert(`Olimpíadas encerradas! Medalha de Ouro: ${gameState.olympicBracket.goldMedal || 'Em andamento'}`);
+    if (!nextM) return toast(`Torneio Mundial encerrado! Medalha de Ouro: ${gameState.olympicBracket.goldMedal || 'Em andamento'}`);
     activeMatchMode = 'olympicBracket'; activeCupMatch = nextM;
     $('matchFeed').innerHTML = `<div><b>🏅 ${gameState.olympicBracket.name} — ${gameState.olympicBracket.roundName}</b></div>`;
     engine.setupMatch(nextM.home, nextM.away); engine.speed = Number($('selSpeed').value); engine.start();
@@ -1175,11 +1419,13 @@
   $('selLiveFormation').addEventListener('change', (e) => { if (engine) engine.setTactics('home', { formation: e.target.value }); });
   $('selLiveMentality').addEventListener('change', (e) => { if (engine) engine.setTactics('home', { mentality: e.target.value }); });
   $('btnDoSub').addEventListener('click', () => {
-    if (!engine || !engine.running) return alert('Inicie uma partida primeiro para substituir.');
+    if (!engine || !engine.running) return toast('Inicie uma partida primeiro para substituir.', true);
     const user = getUserClub(), benchP = user.squad.find(p => p.id === $('selSubIn').value);
     if (engine.substitutePlayer('home', $('selSubOut').value, benchP)) audio.uiClick();
   });
   $('btnSearchMkt').addEventListener('click', renderMarket);
+
+  document.addEventListener('visibilitychange', () => { if (document.hidden && engine && engine.running && !engine.paused) { engine.paused = true; toast('Partida pausada (você saiu da aba).'); } });
 
   initSplash();
 })();
